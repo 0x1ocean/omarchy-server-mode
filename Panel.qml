@@ -155,7 +155,9 @@ Panel {
               ? (root.serverService.deadline > 0
                 ? Model.remainingLabel(root.serverService.remainingSeconds)
                 : "Until logout")
-              : (root.serverService ? Model.reasonLabel(root.serverService.lastReason) : "—")
+              : (root.serverService
+                ? Model.durationLabel(root.serverService.defaultDurationMinutes)
+                : "—")
           }
           StatusRow {
             visible: root.serverService && root.serverService.batteryPresent

@@ -159,7 +159,7 @@ Item {
       waitForEnd: true
       onStreamFinished: root.applyStatus(text)
     }
-    onExited: function(exitCode, exitStatus) {
+    onExited: function(exitCode) {
       if (exitCode !== 0) root.lastError = "Could not read Server Mode status"
     }
   }
@@ -175,7 +175,7 @@ Item {
 
   Process {
     id: actionProcess
-    onExited: function(exitCode, exitStatus) {
+    onExited: function(exitCode) {
       root.busy = false
       if (exitCode !== 0) root.lastError = "Server Mode action failed"
       root.refreshAll()
@@ -185,7 +185,7 @@ Item {
   Process {
     id: renewProcess
     command: [root.helperPath, "renew"]
-    onExited: function(exitCode, exitStatus) {
+    onExited: function(exitCode) {
       if (exitCode !== 0 && root.active) root.refresh()
     }
   }
