@@ -312,15 +312,6 @@ Panel {
               valueColor: root.tailscale.active ? root.foreground : root.dim
             }
 
-            Button {
-              width: parent.width
-              text: "Refresh connection status"
-              iconText: "󰑐"
-              foreground: root.foreground
-              accent: Color.accent
-              onClicked: if (root.serverService) root.serverService.refreshAll()
-            }
-
             PanelSeparator { foreground: root.foreground }
             PanelSectionHeader { text: "SSH"; foreground: root.foreground; fontFamily: root.fontFamily }
             StatusRow {
