@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import Quickshell
 import qs.Commons
 import qs.Ui
@@ -94,16 +93,11 @@ Panel {
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
         interactive: contentHeight > height
-        ScrollBar.vertical: ScrollBar {
-          id: panelScroll
-          policy: panelFlick.interactive ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-          active: panelFlick.interactive
-        }
 
         Column {
           id: content
           width: panelFlick.width - Style.space(8)
-          spacing: Style.space(10)
+          spacing: Style.space(8)
 
           PanelHero {
             width: parent.width
@@ -185,7 +179,7 @@ Panel {
               width: (parent.width - parent.spacing * 3) / 4
               text: "30m"
               bordered: true
-              background: Style.normalFillFor(root.foreground, Color.accent)
+              background: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.07)
               selected: root.serverService && root.serverService.active && root.serverService.remainingSeconds > 0
                 && root.serverService.remainingSeconds <= 30 * 60
               foreground: root.foreground
@@ -196,7 +190,7 @@ Panel {
               width: (parent.width - parent.spacing * 3) / 4
               text: "1h"
               bordered: true
-              background: Style.normalFillFor(root.foreground, Color.accent)
+              background: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.07)
               selected: root.serverService && root.serverService.active && root.serverService.remainingSeconds > 30 * 60
                 && root.serverService.remainingSeconds <= 60 * 60
               foreground: root.foreground
@@ -207,7 +201,7 @@ Panel {
               width: (parent.width - parent.spacing * 3) / 4
               text: "4h"
               bordered: true
-              background: Style.normalFillFor(root.foreground, Color.accent)
+              background: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.07)
               selected: root.serverService && root.serverService.active && root.serverService.remainingSeconds > 60 * 60
                 && root.serverService.remainingSeconds <= 240 * 60
               foreground: root.foreground
@@ -218,7 +212,7 @@ Panel {
               width: (parent.width - parent.spacing * 3) / 4
               text: "Session"
               bordered: true
-              background: Style.normalFillFor(root.foreground, Color.accent)
+              background: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.07)
               selected: root.serverService && root.serverService.active && root.serverService.deadline === 0
               foreground: root.foreground
               accent: Color.accent
@@ -234,7 +228,7 @@ Panel {
               width: (parent.width - parent.spacing) / 2
               text: "Full server"
               bordered: true
-              background: Style.normalFillFor(root.foreground, Color.accent)
+              background: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.07)
               selected: root.serverService && root.serverService.active && root.serverService.scope === "full"
               foreground: root.foreground
               accent: Color.accent
@@ -245,7 +239,7 @@ Panel {
               width: (parent.width - parent.spacing) / 2
               text: "Lid only"
               bordered: true
-              background: Style.normalFillFor(root.foreground, Color.accent)
+              background: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.07)
               selected: root.serverService && root.serverService.active && root.serverService.scope === "lid"
               foreground: root.foreground
               accent: Color.accent
@@ -275,7 +269,7 @@ Panel {
               text: root.preferredAddress !== "" ? "Copy address" : "No address"
               iconText: "󰆏"
               bordered: true
-              background: Style.normalFillFor(root.foreground, Color.accent)
+              background: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.07)
               enabled: root.preferredAddress !== ""
               foreground: root.foreground
               accent: Color.accent
@@ -286,7 +280,7 @@ Panel {
               text: "Refresh"
               iconText: "󰑐"
               bordered: true
-              background: Style.normalFillFor(root.foreground, Color.accent)
+              background: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.07)
               foreground: root.foreground
               accent: Color.accent
               onClicked: if (root.serverService) root.serverService.refreshAll()
@@ -308,7 +302,7 @@ Panel {
             text: root.sshCommand !== "" ? root.sshCommand : "SSH command unavailable"
             iconText: "󰆍"
             bordered: true
-            background: Style.normalFillFor(root.foreground, Color.accent)
+            background: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.07)
             leftAlign: true
             enabled: root.sshCommand !== ""
             foreground: root.foreground
@@ -364,6 +358,26 @@ Panel {
             width: parent.width
             height: Style.space(2)
           }
+        }
+
+      }
+
+      Rectangle {
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: Style.space(2)
+        visible: panelFlick.interactive
+        color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.08)
+        radius: width / 2
+        z: 2
+
+        Rectangle {
+          width: parent.width
+          height: Math.max(Style.space(24), parent.height * panelFlick.visibleArea.heightRatio)
+          y: parent.height * panelFlick.visibleArea.yPosition
+          color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.55)
+          radius: width / 2
         }
       }
     }
