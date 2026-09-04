@@ -70,11 +70,12 @@ BarWidget {
   function tooltip() {
     if (!root.serverService) return "Server Mode is loading"
     if (root.errorText !== "") return root.errorText
-    if (!root.active) return "Server Mode: OFF · left-click to protect this computer"
+    if (!root.active) return "Server Mode: OFF · click for controls · right-click to turn on"
     var duration = root.serverService.deadline > 0
       ? Model.remainingLabel(root.serverService.remainingSeconds)
       : "Until logout"
     return "Server Mode: ON · " + Model.scopeLabel(root.serverService.scope) + " · " + duration
+      + " · click for controls · right-click to turn off"
   }
 
   implicitWidth: button.implicitWidth
@@ -114,8 +115,8 @@ BarWidget {
     tooltipText: root.tooltip()
 
     onPressed: function(mouseButton) {
-      if (mouseButton === Qt.RightButton) root.togglePanel()
-      else if (mouseButton === Qt.LeftButton) root.toggleMode()
+      if (mouseButton === Qt.RightButton) root.toggleMode()
+      else if (mouseButton === Qt.LeftButton) root.togglePanel()
     }
   }
 }

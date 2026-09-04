@@ -31,8 +31,8 @@ omarchy plugin add https://github.com/0x1ocean/omarchy-server-mode.git --enable
 
 Server Mode appears in the right side of the Omarchy bar.
 
-- Left click toggles the configured default mode.
-- Right click opens the control panel.
+- Left click opens the control panel.
+- Right click toggles the configured default mode.
 - `R` refreshes connection diagnostics while the panel is focused.
 - `S` copies the generated SSH command.
 
