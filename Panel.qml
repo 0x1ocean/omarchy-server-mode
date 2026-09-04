@@ -151,11 +151,17 @@ Panel {
             foreground: root.foreground
             fontFamily: root.fontFamily
             iconComponent: Component {
-              OpticalGlyph {
-                text: "󰍹"
-                fontFamily: root.fontFamily
-                fontSize: Style.font.display
-                color: root.serverService && root.serverService.active ? Color.accent : root.dim
+              Item {
+                width: Style.font.display
+                height: Style.font.display
+
+                OpticalGlyph {
+                  anchors.fill: parent
+                  text: "󰒋"
+                  fontFamily: root.fontFamily
+                  fontSize: Style.font.display
+                  color: root.serverService && root.serverService.active ? Color.accent : root.dim
+                }
               }
             }
             trailingControl: Component {

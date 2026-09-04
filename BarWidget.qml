@@ -107,7 +107,7 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: "󰍹"
+    text: "󰒋"
     active: root.active || root.errorText !== ""
     activeColor: root.errorText !== "" ? Color.urgent : Color.accent
     dimmed: root.busy || !root.active
