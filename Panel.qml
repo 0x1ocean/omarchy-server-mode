@@ -157,7 +157,7 @@ Panel {
 
                 OpticalGlyph {
                   anchors.fill: parent
-                  text: "󰒋"
+                  text: "\uf233"
                   fontFamily: root.fontFamily
                   fontSize: Style.font.display
                   color: root.serverService && root.serverService.active ? Color.accent : root.dim
