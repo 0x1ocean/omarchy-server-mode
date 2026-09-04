@@ -152,7 +152,7 @@ Panel {
             fontFamily: root.fontFamily
             iconComponent: Component {
               OpticalGlyph {
-                text: "󰒋"
+                text: "󰍹"
                 fontFamily: root.fontFamily
                 fontSize: Style.font.display
                 color: root.serverService && root.serverService.active ? Color.accent : root.dim
