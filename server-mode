@@ -48,7 +48,8 @@ is_uint() {
 }
 
 ensure_runtime_dir() {
-  mkdir -p -m 700 "$RUNTIME_DIR"
+  mkdir -p "$RUNTIME_DIR"
+  chmod 700 "$RUNTIME_DIR"
 }
 
 unit_is_active() {
@@ -87,8 +88,8 @@ notify_state() {
 }
 
 wait_until_unit_gone() {
-  local attempt load_state
-  for attempt in {1..40}; do
+  local load_state
+  for _ in {1..40}; do
     load_state=$("$SYSTEMCTL_BIN" --user show "$UNIT" --property=LoadState --value 2>/dev/null || true)
     if [[ -z $load_state || $load_state == not-found ]]; then
       return 0
@@ -291,6 +292,8 @@ status_mode() {
   fi
 
   if [[ $json == true ]]; then
+    # jq variables are expanded by jq, so the filter must remain single-quoted.
+    # shellcheck disable=SC2016
     "$JQ_BIN" -cn \
       --argjson active "$active" \
       --arg scope "$scope" \
@@ -389,6 +392,8 @@ diagnostics() {
     return 0
   fi
 
+  # jq variables are expanded by jq, so the filter must remain single-quoted.
+  # shellcheck disable=SC2016
   "$JQ_BIN" -cn \
     --arg hostname "$host" \
     --arg user "$user" \
