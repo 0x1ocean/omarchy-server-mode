@@ -85,6 +85,22 @@ Panel {
     return Model.scopeLabel(serverService.scope) + " · " + duration
   }
 
+  function remoteScreenSummary() {
+    var providers = []
+    var items = [
+      { name: "Sunshine", value: remoteDesktop.sunshine },
+      { name: "RustDesk", value: remoteDesktop.rustdesk },
+      { name: "WayVNC", value: remoteDesktop.wayvnc }
+    ]
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].value && items[i].value.active === true)
+        return items[i].name + " running"
+      if (items[i].value && items[i].value.installed === true)
+        providers.push(items[i].name)
+    }
+    return providers.length > 0 ? providers.join(", ") : "Not configured"
+  }
+
   onOpenedChanged: if (opened && serverService) serverService.refreshAll()
 
   KeyboardPanel {
@@ -334,9 +350,7 @@ Panel {
 
             PanelSeparator { foreground: root.foreground }
             PanelSectionHeader { text: "REMOTE SCREEN"; foreground: root.foreground; fontFamily: root.fontFamily }
-            StatusRow { label: "Sunshine"; value: Model.providerLabel(root.remoteDesktop.sunshine) }
-            StatusRow { label: "RustDesk"; value: Model.providerLabel(root.remoteDesktop.rustdesk) }
-            StatusRow { label: "WayVNC"; value: Model.providerLabel(root.remoteDesktop.wayvnc) }
+            StatusRow { label: "Provider"; value: root.remoteScreenSummary() }
             Text {
               width: parent.width
               text: Model.hasRemoteDesktop(root.info)
