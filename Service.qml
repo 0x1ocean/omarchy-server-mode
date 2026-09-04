@@ -31,7 +31,7 @@ Item {
   readonly property bool onBattery: batteryPresent && UPower.onBattery
   readonly property string defaultScope: Model.normalizedScope(setting("defaultScope", "Full server"))
   readonly property int defaultDurationMinutes: Model.durationMinutes(setting("defaultDurationMinutes", 0))
-  readonly property bool notificationsEnabled: setting("notifications", true) === true
+  readonly property bool notificationsEnabled: setting("notifications", false) === true
   readonly property int refreshIntervalMs: Model.refreshSeconds(setting("refreshIntervalSec", 10)) * 1000
   readonly property int lowBatteryCutoff: Model.batteryCutoff(setting("minimumBatteryPercent", 15))
   readonly property string preferredAddress: Model.preferredAddress(diagnostics, setting("preferredAddress", "Automatic"))

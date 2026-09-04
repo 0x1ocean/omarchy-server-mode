@@ -16,6 +16,7 @@ changes SSH configuration on its own.
   removed, or stops running.
 - Optional start-on-login and start-on-AC policies.
 - Optional stop-on-battery and low-battery protection.
+- Optional state-change notifications, disabled by default.
 - LAN, hostname, Tailscale, and SSH readiness in a native Omarchy panel.
 - Detection for Sunshine, RustDesk, and WayVNC.
 - Copyable preferred address and SSH command.

@@ -27,7 +27,7 @@
       "autoStartOnAc": false,
       "stopOnBattery": false,
       "minimumBatteryPercent": 15,
-      "notifications": true,
+      "notifications": false,
       "preferredAddress": "Automatic",
       "refreshIntervalSec": 10
     },
@@ -89,7 +89,7 @@
         "type": "boolean",
         "label": "Notifications",
         "description": "Show a notification when Server Mode changes state.",
-        "defaultValue": true
+        "defaultValue": false
       },
       {
         "key": "preferredAddress",
