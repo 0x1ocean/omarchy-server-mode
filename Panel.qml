@@ -134,7 +134,7 @@ Panel {
 
           PanelHero {
             width: parent.width
-            title: "Server Mode"
+            title: "Remote Server Mode"
             meta: root.heroMeta()
             foreground: root.foreground
             fontFamily: root.fontFamily
@@ -274,7 +274,7 @@ Panel {
 
             Text {
               width: parent.width
-              text: "Choosing a protection mode or duration turns Server Mode on."
+              text: "Choosing a protection mode or duration turns Remote Server Mode on."
               textFormat: Text.PlainText
               color: root.dim
               font.family: root.fontFamily

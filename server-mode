@@ -80,9 +80,9 @@ notify_state() {
   local detail="$2"
   command -v omarchy-notification-send >/dev/null 2>&1 || return 0
   if [[ $active == true ]]; then
-    omarchy-notification-send -g "$ICON" "Server Mode is ON — $detail"
+    omarchy-notification-send -g "$ICON" "Remote Server Mode is ON — $detail"
   else
-    omarchy-notification-send -g "$ICON" "Server Mode is OFF — $detail"
+    omarchy-notification-send -g "$ICON" "Remote Server Mode is OFF — $detail"
   fi
 }
 
@@ -173,7 +173,7 @@ start_mode() {
       --unit="$UNIT_NAME" \
       --collect \
       --quiet \
-      --description="Omarchy Server Mode" \
+      --description="Omarchy Remote Server Mode" \
       --property="KillMode=control-group" \
       --property="TimeoutStopSec=5" \
       -- \
@@ -261,7 +261,7 @@ hold_inhibitor() {
 
   exec "$SYSTEMD_INHIBIT_BIN" \
     --what="$what" \
-    --who="Omarchy Server Mode" \
+    --who="Omarchy Remote Server Mode" \
     --why="$why" \
     --mode=block \
     -- \

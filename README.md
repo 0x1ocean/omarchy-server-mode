@@ -1,59 +1,118 @@
-# Server Mode for Omarchy
+# Remote Server Mode for Omarchy
 
-Server Mode keeps an Omarchy computer available for remote work and shows the
-connection information you need to reach it. It works on laptops and desktops,
-does not require root for its core power protection, and never opens a port or
-changes SSH configuration on its own.
+Turn an Omarchy laptop or desktop into a dependable remote workstation without
+leaving sleep prevention, connection addresses, and service status scattered
+across terminal commands. Remote Server Mode lives in the Omarchy bar and gives
+you one focused control panel for power protection and remote-access readiness.
 
-> This is an early development release. Remote-screen provider control and a
-> tested Hyprland headless-display workflow are planned for a later milestone.
+It can keep the machine awake for an entire login session or a fixed amount of
+time, distinguish between full sleep protection and lid-close-only protection,
+and stop automatically when battery conditions become unsafe. The Access view
+shows the current LAN and Tailscale addresses plus live SSH and remote-desktop
+status for Sunshine, RustDesk, and WayVNC.
+
+![Remote Server Mode open on a clean Omarchy workspace](preview.png)
+
+## Why use it?
+
+Remote access is only useful while the computer remains reachable. A laptop can
+quietly suspend when its lid closes, a temporary stay-awake command can be
+forgotten, and a cached VPN address can look valid even after the VPN disconnects.
+Remote Server Mode brings those signals together and makes the active protection
+visible from the bar.
+
+Typical uses include:
+
+- Connecting to an Omarchy machine over SSH from another computer.
+- Streaming the desktop through Sunshine and Moonlight.
+- Reaching a home workstation through Tailscale or the local network.
+- Keeping a laptop awake with its lid closed while preserving manual suspend.
+- Running a temporary remote session without leaving a permanent inhibitor behind.
+
+The plugin does not install remote-access software, open ports, change firewall
+rules, or enable SSH. It reports the services already configured on the machine
+and keeps power behaviour explicit.
 
 ## Features
 
-- Full-server or lid-only sleep inhibition.
-- Session-long or timed protection.
-- Heartbeat lease that releases the inhibitor after the plugin is disabled,
-  removed, or stops running.
-- Optional start-on-login and start-on-AC policies.
-- Optional stop-on-battery and low-battery protection.
-- Optional state-change notifications, disabled by default.
-- LAN, hostname, Tailscale, and SSH readiness in a native Omarchy panel.
-- Detection for Sunshine, RustDesk, and WayVNC.
-- Copyable preferred address and SSH command.
-- Native Omarchy settings and theme-aware UI.
+- **Full server mode** blocks regular sleep requests and lid-close suspend.
+- **Lid-only mode** blocks lid-close suspend while leaving manual suspend available.
+- Session-long protection or quick 30-minute, 1-hour, and 4-hour timers.
+- A heartbeat lease that restores normal sleep if the plugin or shell disappears.
+- Optional start on login or whenever AC power is connected.
+- Optional stop on battery and configurable low-battery cutoff.
+- Live LAN address, hostname, and connected Tailscale address.
+- SSH installation, service state, port, and a ready-to-copy connection command.
+- Live detection for Sunshine, RustDesk, and WayVNC.
+- Native, theme-aware Omarchy panel with keyboard shortcuts.
+- State-change notifications are available but disabled by default.
 
 ## Install
-
-Once the repository is published:
 
 ```bash
 omarchy plugin add https://github.com/0x1ocean/omarchy-server-mode.git --enable
 ```
 
-Server Mode appears in the right side of the Omarchy bar.
+The Remote Server Mode icon appears in the right section of the Omarchy bar.
+Plugins execute as the current user and are not sandboxed, so review the source
+before enabling this or any third-party Omarchy plugin.
 
-- Left click opens the control panel.
-- Right click toggles the configured default mode.
-- `P` and `A` switch between the Power and Access views.
-- `R` refreshes connection diagnostics while the panel is focused.
+## Use
+
+- **Left click** opens or closes the control panel.
+- **Right click** immediately enables or disables the configured default mode.
+- `P` opens the Power view while the panel is focused.
+- `A` opens the Access view.
+- `R` refreshes connection diagnostics.
 - `S` copies the generated SSH command.
 
-## Power protection
+### Power modes
 
-`Full server` blocks both regular sleep requests and lid-close handling.
-`Lid only` blocks only the low-level lid switch, so manual suspend continues to
-work.
+| Mode | Lid close | Manual or automatic suspend | Best for |
+| --- | --- | --- | --- |
+| Full server | Blocked | Blocked | An unattended computer that must remain reachable |
+| Lid only | Blocked | Allowed | A closed laptop that should still suspend when requested |
 
-The plugin renews a short runtime lease while it is loaded. If the shell exits,
-the plugin is disabled, or its files are removed, the inhibitor expires after
-at most about one minute. This avoids leaving a hidden stay-awake process behind.
+Protection does not bypass the lock screen or authentication. When the plugin is
+enabled it renews a short runtime lease. If Omarchy Shell exits, the plugin is
+disabled, or its files are removed, the inhibitor expires after about one minute
+instead of leaving a hidden stay-awake process behind.
 
-The lock screen remains independent. Server Mode does not disable authentication
-or unlock the session.
+### Access status
 
-## CLI
+The Access view reports, but does not configure, the following integrations:
 
-The helper can be run directly from the installed plugin directory:
+- **LAN:** the first usable global private IPv4 address.
+- **Tailscale:** an IP address and MagicDNS name only when the local node is online;
+  cached addresses are deliberately ignored after disconnecting.
+- **SSH:** OpenSSH server installation, `sshd.service` state, configured port, and
+  a copyable command using the preferred address.
+- **Remote desktop:** installation and live process state for Sunshine, RustDesk,
+  and WayVNC.
+
+For access away from home, prefer SSH keys and a trusted private network such as
+Tailscale. Sunshine works well with Moonlight for low-latency desktop streaming,
+but pairing, codecs, firewall access, and client quality remain Sunshine/Moonlight
+settings rather than plugin settings.
+
+## Settings
+
+| Setting | Purpose | Default |
+| --- | --- | --- |
+| Default protection | Choose Full server or Lid only | Full server |
+| Default duration | Keep protection timed or active until logout | Until logout |
+| Start on login | Enable protection when Omarchy Shell starts | Off |
+| Start when plugged in | Enable when the laptop switches to AC power | Off |
+| Stop when unplugged | Restore normal sleep when battery power begins | Off |
+| Low-battery cutoff | Stop protection at the selected battery percentage | 15% |
+| Notifications | Show state-change notifications | Off |
+| Preferred address | Choose Automatic, Tailscale, LAN, or hostname | Automatic |
+| Status refresh | Set the diagnostics polling interval | 10 seconds |
+
+## Command line
+
+The included helper is also useful for inspection and troubleshooting from the
+installed plugin directory:
 
 ```bash
 ./server-mode on --scope full --duration-minutes 120
@@ -64,26 +123,13 @@ The helper can be run directly from the installed plugin directory:
 ./server-mode off
 ```
 
-The normal bar service renews the lease. Running `on` while the plugin is not
-loaded is intentionally temporary and expires when no heartbeat arrives.
+The Omarchy service normally supplies the heartbeat. Starting the helper directly
+without the loaded plugin is intentionally temporary and expires when no heartbeat
+arrives.
 
-## Remote access
+## Requirements
 
-Server Mode only reports existing services in this release:
-
-- Tailscale address and MagicDNS name only when the backend is running and the
-  local node is online; cached addresses are ignored while disconnected.
-- OpenSSH server installation, `sshd.service` state, port, and a connection command.
-- Sunshine, RustDesk, and WayVNC installation and live process state.
-
-It does **not** install packages, enable `sshd`, edit `sshd_config`, change the
-firewall, create users, or enable password authentication. Configure remote
-access yourself and prefer SSH keys plus a trusted private network such as
-Tailscale.
-
-## Dependencies
-
-Core dependencies already present on Omarchy:
+Core dependencies are already included with Omarchy:
 
 - Bash
 - systemd (`systemctl`, `systemd-run`, and `systemd-inhibit`)
@@ -93,10 +139,10 @@ Core dependencies already present on Omarchy:
 - `procps-ng`
 - `wl-clipboard`
 
-Optional integrations are detected only when installed: Tailscale, OpenSSH,
-Sunshine, RustDesk, and WayVNC.
+Tailscale, OpenSSH, Sunshine, RustDesk, and WayVNC are optional. Missing
+integrations are shown as unavailable and are never installed automatically.
 
-## Validate
+## Validate from source
 
 ```bash
 omarchy plugin validate .
@@ -107,23 +153,25 @@ node tests/model.test.js
 bash tests/helper.test.sh
 ```
 
-## Remove
+## Update or remove
 
 ```bash
+omarchy plugin update io.github.0x1ocean.server-mode
 omarchy plugin remove io.github.0x1ocean.server-mode
 ```
 
-The heartbeat lease stops being renewed before Omarchy removes the checkout.
-Any active inhibitor then exits automatically within its lease window. You can
-also turn Server Mode off first for immediate cleanup.
+Turning the mode off first restores normal sleep immediately. If it is removed
+while active, the heartbeat lease stops and normal sleep returns automatically.
 
-## Safety
+## Safety and privacy
 
 A laptop may rely on an open lid for cooling. Check the manufacturer's thermal
-guidance before running sustained workloads with the lid closed. The optional
-low-battery cutoff is not a substitute for hardware thermal protection.
+guidance before running sustained workloads with the lid closed, and keep the
+low-battery cutoff enabled when appropriate.
 
-See [SECURITY.md](SECURITY.md) for privilege and trust boundaries.
+Remote Server Mode stores no passwords, private keys, tokens, or remote network
+data. Diagnostics remain local in Omarchy Shell memory. For the full trust boundary
+and lifecycle guarantees, see [SECURITY.md](SECURITY.md).
 
 ## License
 

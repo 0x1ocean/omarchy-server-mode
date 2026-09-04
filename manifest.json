@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "id": "io.github.0x1ocean.server-mode",
-  "name": "Server Mode",
-  "version": "0.1.0",
+  "name": "Remote Server Mode",
+  "version": "1.0.0",
   "author": "0x1ocean",
   "license": "MIT",
-  "description": "Keep an Omarchy computer awake and show safe remote-access readiness.",
+  "description": "Keep an Omarchy laptop or desktop reachable for remote work: prevent sleep or lid-close suspend, set timed sessions and battery safeguards, and monitor LAN, Tailscale, SSH, Sunshine, RustDesk, and WayVNC readiness from the bar.",
   "kinds": [
     "service",
     "bar-widget"
@@ -15,8 +15,8 @@
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "Server Mode",
-    "description": "Power protection, connection addresses, SSH, and remote-screen readiness.",
+    "displayName": "Remote Server Mode",
+    "description": "Keep this computer awake for remote work and check LAN, Tailscale, SSH, and remote desktop readiness.",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right",
@@ -47,7 +47,7 @@
         "key": "defaultDurationMinutes",
         "type": "integer",
         "label": "Default duration (minutes)",
-        "description": "Use 0 to keep Server Mode active until logout or until you turn it off.",
+        "description": "Use 0 to keep Remote Server Mode active until logout or until you turn it off.",
         "min": 0,
         "max": 10080,
         "step": 30,
@@ -57,14 +57,14 @@
         "key": "autoStart",
         "type": "boolean",
         "label": "Start on login",
-        "description": "Enable Server Mode when the Omarchy shell starts.",
+        "description": "Enable Remote Server Mode when the Omarchy shell starts.",
         "defaultValue": false
       },
       {
         "key": "autoStartOnAc",
         "type": "boolean",
         "label": "Start when plugged in",
-        "description": "Enable Server Mode when a laptop switches from battery to external power.",
+        "description": "Enable Remote Server Mode when a laptop switches from battery to external power.",
         "defaultValue": false
       },
       {
@@ -78,7 +78,7 @@
         "key": "minimumBatteryPercent",
         "type": "integer",
         "label": "Low-battery cutoff (%)",
-        "description": "Stop Server Mode at this charge while on battery. Use 0 to disable the cutoff.",
+        "description": "Stop Remote Server Mode at this charge while on battery. Use 0 to disable the cutoff.",
         "min": 0,
         "max": 95,
         "step": 5,
@@ -88,7 +88,7 @@
         "key": "notifications",
         "type": "boolean",
         "label": "Notifications",
-        "description": "Show a notification when Server Mode changes state.",
+        "description": "Show a notification when Remote Server Mode changes state.",
         "defaultValue": false
       },
       {

@@ -68,13 +68,13 @@ BarWidget {
   }
 
   function tooltip() {
-    if (!root.serverService) return "Server Mode is loading"
+    if (!root.serverService) return "Remote Server Mode is loading"
     if (root.errorText !== "") return root.errorText
-    if (!root.active) return "Server Mode: OFF · click for controls · right-click to turn on"
+    if (!root.active) return "Remote Server Mode: OFF · click for controls · right-click to turn on"
     var duration = root.serverService.deadline > 0
       ? Model.remainingLabel(root.serverService.remainingSeconds)
       : "Until logout"
-    return "Server Mode: ON · " + Model.scopeLabel(root.serverService.scope) + " · " + duration
+    return "Remote Server Mode: ON · " + Model.scopeLabel(root.serverService.scope) + " · " + duration
       + " · click for controls · right-click to turn off"
   }
 
