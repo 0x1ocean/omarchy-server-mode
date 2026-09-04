@@ -96,7 +96,7 @@ Panel {
         interactive: contentHeight > height
         ScrollBar.vertical: ScrollBar {
           id: panelScroll
-          policy: ScrollBar.AsNeeded
+          policy: panelFlick.interactive ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
           active: panelFlick.interactive
         }
 
@@ -185,6 +185,7 @@ Panel {
               width: (parent.width - parent.spacing * 3) / 4
               text: "30m"
               bordered: true
+              background: Style.normalFillFor(root.foreground, Color.accent)
               selected: root.serverService && root.serverService.active && root.serverService.remainingSeconds > 0
                 && root.serverService.remainingSeconds <= 30 * 60
               foreground: root.foreground
@@ -195,6 +196,7 @@ Panel {
               width: (parent.width - parent.spacing * 3) / 4
               text: "1h"
               bordered: true
+              background: Style.normalFillFor(root.foreground, Color.accent)
               selected: root.serverService && root.serverService.active && root.serverService.remainingSeconds > 30 * 60
                 && root.serverService.remainingSeconds <= 60 * 60
               foreground: root.foreground
@@ -205,6 +207,7 @@ Panel {
               width: (parent.width - parent.spacing * 3) / 4
               text: "4h"
               bordered: true
+              background: Style.normalFillFor(root.foreground, Color.accent)
               selected: root.serverService && root.serverService.active && root.serverService.remainingSeconds > 60 * 60
                 && root.serverService.remainingSeconds <= 240 * 60
               foreground: root.foreground
@@ -215,6 +218,7 @@ Panel {
               width: (parent.width - parent.spacing * 3) / 4
               text: "Session"
               bordered: true
+              background: Style.normalFillFor(root.foreground, Color.accent)
               selected: root.serverService && root.serverService.active && root.serverService.deadline === 0
               foreground: root.foreground
               accent: Color.accent
@@ -230,6 +234,7 @@ Panel {
               width: (parent.width - parent.spacing) / 2
               text: "Full server"
               bordered: true
+              background: Style.normalFillFor(root.foreground, Color.accent)
               selected: root.serverService && root.serverService.active && root.serverService.scope === "full"
               foreground: root.foreground
               accent: Color.accent
@@ -240,6 +245,7 @@ Panel {
               width: (parent.width - parent.spacing) / 2
               text: "Lid only"
               bordered: true
+              background: Style.normalFillFor(root.foreground, Color.accent)
               selected: root.serverService && root.serverService.active && root.serverService.scope === "lid"
               foreground: root.foreground
               accent: Color.accent
@@ -269,6 +275,7 @@ Panel {
               text: root.preferredAddress !== "" ? "Copy address" : "No address"
               iconText: "󰆏"
               bordered: true
+              background: Style.normalFillFor(root.foreground, Color.accent)
               enabled: root.preferredAddress !== ""
               foreground: root.foreground
               accent: Color.accent
@@ -279,6 +286,7 @@ Panel {
               text: "Refresh"
               iconText: "󰑐"
               bordered: true
+              background: Style.normalFillFor(root.foreground, Color.accent)
               foreground: root.foreground
               accent: Color.accent
               onClicked: if (root.serverService) root.serverService.refreshAll()
@@ -300,6 +308,7 @@ Panel {
             text: root.sshCommand !== "" ? root.sshCommand : "SSH command unavailable"
             iconText: "󰆍"
             bordered: true
+            background: Style.normalFillFor(root.foreground, Color.accent)
             leftAlign: true
             enabled: root.sshCommand !== ""
             foreground: root.foreground
