@@ -366,9 +366,9 @@ Panel {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: Style.space(2)
+        width: Style.space(3)
         visible: panelFlick.interactive
-        color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.08)
+        color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.16)
         radius: width / 2
         z: 2
 
@@ -376,7 +376,7 @@ Panel {
           width: parent.width
           height: Math.max(Style.space(24), parent.height * panelFlick.visibleArea.heightRatio)
           y: parent.height * panelFlick.visibleArea.yPosition
-          color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.55)
+          color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.72)
           radius: width / 2
         }
       }
