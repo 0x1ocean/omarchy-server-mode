@@ -68,7 +68,9 @@ Panel {
     open: root.opened
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(390))
-    contentHeight: panel.fittedContentHeight(content.implicitHeight, Style.space(680))
+    // Match Omarchy's standard panel cap so fractional display scaling never
+    // leaves the card pressed against the bottom edge of the screen.
+    contentHeight: panel.fittedContentHeight(content.implicitHeight, Style.space(560))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -84,6 +86,7 @@ Panel {
       }
 
       Flickable {
+        id: panelFlick
         anchors.fill: parent
         contentWidth: width
         contentHeight: content.implicitHeight
@@ -91,12 +94,16 @@ Panel {
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
         interactive: contentHeight > height
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        ScrollBar.vertical: ScrollBar {
+          id: panelScroll
+          policy: ScrollBar.AsNeeded
+          active: panelFlick.interactive
+        }
 
         Column {
           id: content
-          width: parent.width
-          spacing: Style.space(12)
+          width: panelFlick.width - Style.space(8)
+          spacing: Style.space(10)
 
           PanelHero {
             width: parent.width
@@ -177,6 +184,7 @@ Panel {
             Button {
               width: (parent.width - parent.spacing * 3) / 4
               text: "30m"
+              bordered: true
               selected: root.serverService && root.serverService.active && root.serverService.remainingSeconds > 0
                 && root.serverService.remainingSeconds <= 30 * 60
               foreground: root.foreground
@@ -186,6 +194,9 @@ Panel {
             Button {
               width: (parent.width - parent.spacing * 3) / 4
               text: "1h"
+              bordered: true
+              selected: root.serverService && root.serverService.active && root.serverService.remainingSeconds > 30 * 60
+                && root.serverService.remainingSeconds <= 60 * 60
               foreground: root.foreground
               accent: Color.accent
               onClicked: root.turnOn(60)
@@ -193,6 +204,9 @@ Panel {
             Button {
               width: (parent.width - parent.spacing * 3) / 4
               text: "4h"
+              bordered: true
+              selected: root.serverService && root.serverService.active && root.serverService.remainingSeconds > 60 * 60
+                && root.serverService.remainingSeconds <= 240 * 60
               foreground: root.foreground
               accent: Color.accent
               onClicked: root.turnOn(240)
@@ -200,6 +214,7 @@ Panel {
             Button {
               width: (parent.width - parent.spacing * 3) / 4
               text: "Session"
+              bordered: true
               selected: root.serverService && root.serverService.active && root.serverService.deadline === 0
               foreground: root.foreground
               accent: Color.accent
@@ -214,6 +229,7 @@ Panel {
             Button {
               width: (parent.width - parent.spacing) / 2
               text: "Full server"
+              bordered: true
               selected: root.serverService && root.serverService.active && root.serverService.scope === "full"
               foreground: root.foreground
               accent: Color.accent
@@ -223,6 +239,7 @@ Panel {
             Button {
               width: (parent.width - parent.spacing) / 2
               text: "Lid only"
+              bordered: true
               selected: root.serverService && root.serverService.active && root.serverService.scope === "lid"
               foreground: root.foreground
               accent: Color.accent
@@ -251,6 +268,7 @@ Panel {
               width: (parent.width - parent.spacing) / 2
               text: root.preferredAddress !== "" ? "Copy address" : "No address"
               iconText: "󰆏"
+              bordered: true
               enabled: root.preferredAddress !== ""
               foreground: root.foreground
               accent: Color.accent
@@ -260,6 +278,7 @@ Panel {
               width: (parent.width - parent.spacing) / 2
               text: "Refresh"
               iconText: "󰑐"
+              bordered: true
               foreground: root.foreground
               accent: Color.accent
               onClicked: if (root.serverService) root.serverService.refreshAll()
@@ -280,6 +299,7 @@ Panel {
             width: parent.width
             text: root.sshCommand !== "" ? root.sshCommand : "SSH command unavailable"
             iconText: "󰆍"
+            bordered: true
             leftAlign: true
             enabled: root.sshCommand !== ""
             foreground: root.foreground
@@ -329,6 +349,11 @@ Panel {
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.WordWrap
+          }
+
+          Item {
+            width: parent.width
+            height: Style.space(2)
           }
         }
       }

@@ -7,5 +7,6 @@
 - Added full-server and lid-only protection modes.
 - Added native settings for startup, power, battery, notifications, and address preference.
 - Added a native control panel with quick durations and connection diagnostics.
+- Polished the panel for fractional scaling with a bounded height, visible scrolling, and consistent controls.
 - Added LAN, Tailscale, SSH, Sunshine, RustDesk, and WayVNC detection.
 - Added CLI JSON output, tests, documentation, and CI.
