@@ -71,10 +71,11 @@ function preferredAddress(diagnostics, preference) {
   var data = diagnostics || {}
   var tailscale = data.tailscale || {}
   var choice = String(preference || "Automatic")
-  if (choice === "Tailscale") return tailscale.ip || tailscale.name || ""
+  var tailscaleAddress = tailscale.active === true ? (tailscale.ip || tailscale.name || "") : ""
+  if (choice === "Tailscale") return tailscaleAddress
   if (choice === "LAN") return data.lanIp || ""
   if (choice === "Hostname") return data.hostname || ""
-  return tailscale.ip || tailscale.name || data.lanIp || data.hostname || ""
+  return tailscaleAddress || data.lanIp || data.hostname || ""
 }
 
 function sshCommand(diagnostics, preference) {
@@ -99,6 +100,23 @@ function hasRemoteDesktop(diagnostics) {
   return [providers.sunshine, providers.rustdesk, providers.wayvnc].some(function(provider) {
     return provider && provider.installed === true
   })
+}
+
+function remoteDesktopSummary(diagnostics) {
+  var providers = (diagnostics || {}).remoteDesktop || {}
+  var items = [
+    { name: "Sunshine", value: providers.sunshine },
+    { name: "RustDesk", value: providers.rustdesk },
+    { name: "WayVNC", value: providers.wayvnc }
+  ]
+  var installed = []
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].value && items[i].value.active === true)
+      return items[i].name + " running"
+    if (items[i].value && items[i].value.installed === true)
+      installed.push(items[i].name)
+  }
+  return installed.length > 0 ? installed.join(", ") : "Not configured"
 }
 
 function connectionSummary(diagnostics) {
@@ -126,6 +144,7 @@ if (typeof module !== "undefined") {
     sshCommand: sshCommand,
     providerLabel: providerLabel,
     hasRemoteDesktop: hasRemoteDesktop,
+    remoteDesktopSummary: remoteDesktopSummary,
     connectionSummary: connectionSummary
   }
 }

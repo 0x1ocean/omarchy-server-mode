@@ -71,9 +71,10 @@ loaded is intentionally temporary and expires when no heartbeat arrives.
 
 Server Mode only reports existing services in this release:
 
-- Tailscale address and MagicDNS name, when connected.
-- OpenSSH server installation, service state, port, and a connection command.
-- Sunshine, RustDesk, and WayVNC installation and process state.
+- Tailscale address and MagicDNS name only when the backend is running and the
+  local node is online; cached addresses are ignored while disconnected.
+- OpenSSH server installation, `sshd.service` state, port, and a connection command.
+- Sunshine, RustDesk, and WayVNC installation and live process state.
 
 It does **not** install packages, enable `sshd`, edit `sshd_config`, change the
 firewall, create users, or enable password authentication. Configure remote

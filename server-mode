@@ -11,8 +11,16 @@ readonly SYSTEMCTL_BIN="${SERVER_MODE_SYSTEMCTL_BIN:-systemctl}"
 readonly SYSTEMD_RUN_BIN="${SERVER_MODE_SYSTEMD_RUN_BIN:-systemd-run}"
 readonly SYSTEMD_INHIBIT_BIN="${SERVER_MODE_SYSTEMD_INHIBIT_BIN:-systemd-inhibit}"
 readonly JQ_BIN="${SERVER_MODE_JQ_BIN:-jq}"
+readonly TIMEOUT_BIN="${SERVER_MODE_TIMEOUT_BIN:-timeout}"
+readonly IP_BIN="${SERVER_MODE_IP_BIN:-ip}"
+readonly PGREP_BIN="${SERVER_MODE_PGREP_BIN:-pgrep}"
+readonly TAILSCALE_BIN="${SERVER_MODE_TAILSCALE_BIN:-tailscale}"
+readonly SSHD_BIN="${SERVER_MODE_SSHD_BIN:-sshd}"
+readonly SUNSHINE_BIN="${SERVER_MODE_SUNSHINE_BIN:-sunshine}"
+readonly RUSTDESK_BIN="${SERVER_MODE_RUSTDESK_BIN:-rustdesk}"
+readonly WAYVNC_BIN="${SERVER_MODE_WAYVNC_BIN:-wayvnc}"
 readonly SELF="${SERVER_MODE_SELF:-$(readlink -f "$0")}"
-readonly ICON="󰒋"
+readonly ICON="\uf233"
 
 usage() {
   cat <<'USAGE'
@@ -308,14 +316,14 @@ command_installed() {
 }
 
 process_running() {
-  pgrep -x "$1" >/dev/null 2>&1
+  "$PGREP_BIN" -x "$1" >/dev/null 2>&1
 }
 
 diagnostics() {
   local json=false
   [[ ${1:-} == --json ]] && json=true
 
-  local host user lan_ip tailscale_ip tailscale_name ssh_port
+  local host user lan_ip tailscale_ip tailscale_name tailscale_state tailscale_status ssh_port
   local tailscale_installed=false tailscale_active=false
   local ssh_installed=false ssh_active=false
   local sunshine_installed=false sunshine_active=false
@@ -325,8 +333,8 @@ diagnostics() {
   host=$(hostname 2>/dev/null || printf 'unknown')
   user=$(id -un)
   lan_ip=""
-  if command_installed ip; then
-    lan_ip=$(ip -j -4 addr show up scope global 2>/dev/null | "$JQ_BIN" -r '
+  if command_installed "$IP_BIN"; then
+    lan_ip=$("$IP_BIN" -j -4 addr show up scope global 2>/dev/null | "$JQ_BIN" -r '
       [ .[]
         | select((.ifname | startswith("tailscale")) | not)
         | .addr_info[]?
@@ -337,29 +345,42 @@ diagnostics() {
 
   tailscale_ip=""
   tailscale_name=""
-  if command_installed tailscale; then
+  tailscale_state="Unavailable"
+  tailscale_status=""
+  if command_installed "$TAILSCALE_BIN"; then
     tailscale_installed=true
-    if timeout 2 tailscale status --json >/dev/null 2>&1; then
+    tailscale_status=$("$TIMEOUT_BIN" 2 "$TAILSCALE_BIN" status --json 2>/dev/null || true)
+    tailscale_state=$("$JQ_BIN" -r '.BackendState // "Unknown"' <<<"$tailscale_status" 2>/dev/null || printf 'Unknown')
+    if "$JQ_BIN" -e '.BackendState == "Running" and .Self.Online == true' \
+        <<<"$tailscale_status" >/dev/null 2>&1; then
       tailscale_active=true
-      tailscale_ip=$(timeout 2 tailscale ip -4 2>/dev/null | head -n 1 || true)
-      tailscale_name=$(timeout 2 tailscale status --json 2>/dev/null | "$JQ_BIN" -r '.Self.DNSName // "" | sub("\\.$"; "")' 2>/dev/null || true)
+      tailscale_ip=$("$JQ_BIN" -r '[.Self.TailscaleIPs[]? | select(contains(":") | not)][0] // ""' \
+        <<<"$tailscale_status" 2>/dev/null || true)
+      tailscale_name=$("$JQ_BIN" -r '.Self.DNSName // "" | sub("\\.$"; "")' \
+        <<<"$tailscale_status" 2>/dev/null || true)
     fi
   fi
 
   ssh_port=22
-  if command_installed sshd; then
+  if command_installed "$SSHD_BIN"; then
     ssh_installed=true
-    ssh_port=$(timeout 2 sshd -T 2>/dev/null | awk '$1 == "port" { print $2; exit }' || true)
+    ssh_port=$("$TIMEOUT_BIN" 2 "$SSHD_BIN" -T 2>/dev/null | awk '$1 == "port" { print $2; exit }' || true)
     ssh_port=${ssh_port:-22}
+    if "$SYSTEMCTL_BIN" is-active --quiet sshd.service 2>/dev/null; then ssh_active=true; fi
   fi
-  if "$SYSTEMCTL_BIN" is-active --quiet sshd.service 2>/dev/null; then ssh_active=true; fi
 
-  if command_installed sunshine; then sunshine_installed=true; fi
-  if process_running sunshine; then sunshine_active=true; fi
-  if command_installed rustdesk; then rustdesk_installed=true; fi
-  if process_running rustdesk; then rustdesk_active=true; fi
-  if command_installed wayvnc; then wayvnc_installed=true; fi
-  if process_running wayvnc; then wayvnc_active=true; fi
+  if command_installed "$SUNSHINE_BIN"; then
+    sunshine_installed=true
+    if process_running sunshine; then sunshine_active=true; fi
+  fi
+  if command_installed "$RUSTDESK_BIN"; then
+    rustdesk_installed=true
+    if process_running rustdesk; then rustdesk_active=true; fi
+  fi
+  if command_installed "$WAYVNC_BIN"; then
+    wayvnc_installed=true
+    if process_running wayvnc; then wayvnc_active=true; fi
+  fi
 
   if [[ $json != true ]]; then
     printf 'Host: %s\nLAN: %s\nTailscale: %s\nSSH: %s:%s\n' \
@@ -374,6 +395,7 @@ diagnostics() {
     --arg lanIp "$lan_ip" \
     --argjson tailscaleInstalled "$tailscale_installed" \
     --argjson tailscaleActive "$tailscale_active" \
+    --arg tailscaleState "$tailscale_state" \
     --arg tailscaleIp "$tailscale_ip" \
     --arg tailscaleName "$tailscale_name" \
     --argjson sshInstalled "$ssh_installed" \
@@ -386,7 +408,7 @@ diagnostics() {
     --argjson wayvncInstalled "$wayvnc_installed" \
     --argjson wayvncActive "$wayvnc_active" \
     '{hostname:$hostname,user:$user,lanIp:$lanIp,
-      tailscale:{installed:$tailscaleInstalled,active:$tailscaleActive,ip:$tailscaleIp,name:$tailscaleName},
+      tailscale:{installed:$tailscaleInstalled,active:$tailscaleActive,state:$tailscaleState,ip:$tailscaleIp,name:$tailscaleName},
       ssh:{installed:$sshInstalled,active:$sshActive,port:$sshPort},
       remoteDesktop:{
         sunshine:{installed:$sunshineInstalled,active:$sunshineActive},

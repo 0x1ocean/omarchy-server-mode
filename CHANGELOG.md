@@ -11,5 +11,6 @@
 - Split the panel into focused Power and Access views with a quieter, more compact visual hierarchy.
 - Made left click open the panel and right click toggle Server Mode.
 - Restored the original server glyph with explicit panel bounds and disabled state-change notifications by default.
+- Fixed stale Tailscale detection and added state coverage for Tailscale, SSH, and remote-screen providers.
 - Added LAN, Tailscale, SSH, Sunshine, RustDesk, and WayVNC detection.
 - Added CLI JSON output, tests, documentation, and CI.

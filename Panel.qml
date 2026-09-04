@@ -86,19 +86,7 @@ Panel {
   }
 
   function remoteScreenSummary() {
-    var providers = []
-    var items = [
-      { name: "Sunshine", value: remoteDesktop.sunshine },
-      { name: "RustDesk", value: remoteDesktop.rustdesk },
-      { name: "WayVNC", value: remoteDesktop.wayvnc }
-    ]
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].value && items[i].value.active === true)
-        return items[i].name + " running"
-      if (items[i].value && items[i].value.installed === true)
-        providers.push(items[i].name)
-    }
-    return providers.length > 0 ? providers.join(", ") : "Not configured"
+    return Model.remoteDesktopSummary(root.info)
   }
 
   onOpenedChanged: if (opened && serverService) serverService.refreshAll()

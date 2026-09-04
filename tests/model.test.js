@@ -31,6 +31,38 @@ assert.equal(model.preferredAddress(diagnostics, "Automatic"), "100.64.0.2");
 assert.equal(model.preferredAddress(diagnostics, "LAN"), "192.0.2.10");
 assert.equal(model.sshCommand(diagnostics, "LAN"), "ssh -p 2222 roma@192.0.2.10");
 assert.equal(model.connectionSummary(diagnostics), "Tailscale + SSH ready");
+
+const disconnectedTailscale = {
+  hostname: "arc",
+  user: "roma",
+  lanIp: "192.0.2.10",
+  tailscale: { installed: true, active: false, ip: "100.64.0.2", name: "stale.ts.net" },
+  ssh: { installed: true, active: true, port: 22 },
+};
+assert.equal(model.preferredAddress(disconnectedTailscale, "Automatic"), "192.0.2.10");
+assert.equal(model.preferredAddress(disconnectedTailscale, "Tailscale"), "");
+assert.equal(model.connectionSummary(disconnectedTailscale), "SSH ready on LAN");
+
+assert.equal(model.providerLabel({ installed: false, active: false }), "Not installed");
+assert.equal(model.providerLabel({ installed: true, active: false }), "Installed");
+assert.equal(model.providerLabel({ installed: true, active: true }), "Running");
+assert.equal(model.hasRemoteDesktop({ remoteDesktop: {} }), false);
+assert.equal(model.hasRemoteDesktop({
+  remoteDesktop: { sunshine: { installed: true, active: false } },
+}), true);
+assert.equal(model.remoteDesktopSummary({ remoteDesktop: {} }), "Not configured");
+assert.equal(model.remoteDesktopSummary({
+  remoteDesktop: {
+    sunshine: { installed: true, active: false },
+    rustdesk: { installed: true, active: false },
+  },
+}), "Sunshine, RustDesk");
+assert.equal(model.remoteDesktopSummary({
+  remoteDesktop: {
+    sunshine: { installed: true, active: false },
+    wayvnc: { installed: true, active: true },
+  },
+}), "WayVNC running");
 assert.deepEqual(model.parseObject("not-json", { ok: false }), { ok: false });
 
 console.log("Model tests passed");
