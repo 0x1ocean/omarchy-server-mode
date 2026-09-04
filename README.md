@@ -33,6 +33,7 @@ Server Mode appears in the right side of the Omarchy bar.
 
 - Left click opens the control panel.
 - Right click toggles the configured default mode.
+- `P` and `A` switch between the Power and Access views.
 - `R` refreshes connection diagnostics while the panel is focused.
 - `S` copies the generated SSH command.
 
