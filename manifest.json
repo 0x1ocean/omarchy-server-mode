@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.0x1ocean.server-mode",
+  "name": "Server Mode",
+  "version": "0.1.0",
+  "author": "0x1ocean",
+  "license": "MIT",
+  "description": "Keep an Omarchy computer awake and show safe remote-access readiness.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Server Mode",
+    "description": "Power protection, connection addresses, SSH, and remote-screen readiness.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "defaultScope": "Full server",
+      "defaultDurationMinutes": 0,
+      "autoStart": false,
+      "autoStartOnAc": false,
+      "stopOnBattery": false,
+      "minimumBatteryPercent": 15,
+      "notifications": true,
+      "preferredAddress": "Automatic",
+      "refreshIntervalSec": 10
+    },
+    "schema": [
+      {
+        "key": "defaultScope",
+        "type": "enum",
+        "label": "Default protection",
+        "description": "Full server blocks every suspend request. Lid only blocks suspend caused by closing a laptop lid.",
+        "options": [
+          "Full server",
+          "Lid only"
+        ],
+        "defaultValue": "Full server"
+      },
+      {
+        "key": "defaultDurationMinutes",
+        "type": "integer",
+        "label": "Default duration (minutes)",
+        "description": "Use 0 to keep Server Mode active until logout or until you turn it off.",
+        "min": 0,
+        "max": 10080,
+        "step": 30,
+        "defaultValue": 0
+      },
+      {
+        "key": "autoStart",
+        "type": "boolean",
+        "label": "Start on login",
+        "description": "Enable Server Mode when the Omarchy shell starts.",
+        "defaultValue": false
+      },
+      {
+        "key": "autoStartOnAc",
+        "type": "boolean",
+        "label": "Start when plugged in",
+        "description": "Enable Server Mode when a laptop switches from battery to external power.",
+        "defaultValue": false
+      },
+      {
+        "key": "stopOnBattery",
+        "type": "boolean",
+        "label": "Stop when unplugged",
+        "description": "Restore normal sleep as soon as a laptop starts using its battery.",
+        "defaultValue": false
+      },
+      {
+        "key": "minimumBatteryPercent",
+        "type": "integer",
+        "label": "Low-battery cutoff (%)",
+        "description": "Stop Server Mode at this charge while on battery. Use 0 to disable the cutoff.",
+        "min": 0,
+        "max": 95,
+        "step": 5,
+        "defaultValue": 15
+      },
+      {
+        "key": "notifications",
+        "type": "boolean",
+        "label": "Notifications",
+        "description": "Show a notification when Server Mode changes state.",
+        "defaultValue": true
+      },
+      {
+        "key": "preferredAddress",
+        "type": "enum",
+        "label": "Preferred connection address",
+        "options": [
+          "Automatic",
+          "Tailscale",
+          "LAN",
+          "Hostname"
+        ],
+        "defaultValue": "Automatic"
+      },
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Status refresh (seconds)",
+        "min": 5,
+        "max": 60,
+        "step": 5,
+        "defaultValue": 10
+      }
+    ]
+  }
+}

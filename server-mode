@@ -1,0 +1,447 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly UNIT_NAME="${SERVER_MODE_UNIT_NAME:-omarchy-server-mode}"
+readonly UNIT="${UNIT_NAME}.service"
+readonly RUNTIME_DIR="${SERVER_MODE_RUNTIME_DIR:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/omarchy-server-mode}"
+readonly STATE_FILE="$RUNTIME_DIR/state"
+readonly HEARTBEAT_FILE="$RUNTIME_DIR/heartbeat"
+readonly LAST_REASON_FILE="$RUNTIME_DIR/last-reason"
+readonly SYSTEMCTL_BIN="${SERVER_MODE_SYSTEMCTL_BIN:-systemctl}"
+readonly SYSTEMD_RUN_BIN="${SERVER_MODE_SYSTEMD_RUN_BIN:-systemd-run}"
+readonly SYSTEMD_INHIBIT_BIN="${SERVER_MODE_SYSTEMD_INHIBIT_BIN:-systemd-inhibit}"
+readonly JQ_BIN="${SERVER_MODE_JQ_BIN:-jq}"
+readonly SELF="${SERVER_MODE_SELF:-$(readlink -f "$0")}"
+readonly ICON="󰒋"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  server-mode on [--scope full|lid] [--duration-minutes N] [--lease-seconds N] [--notify]
+  server-mode off [--notify] [--reason TEXT]
+  server-mode toggle [on-options]
+  server-mode renew
+  server-mode status [--json]
+  server-mode diagnostics [--json]
+
+The active inhibitor is supervised by a short heartbeat lease. The Omarchy
+plugin renews it automatically, so disabling or removing the plugin restores
+normal sleep even if no uninstall hook is run.
+USAGE
+}
+
+fail() {
+  echo "server-mode: $*" >&2
+  exit 1
+}
+
+is_uint() {
+  [[ ${1:-} =~ ^[0-9]+$ ]]
+}
+
+ensure_runtime_dir() {
+  mkdir -p -m 700 "$RUNTIME_DIR"
+}
+
+unit_is_active() {
+  "$SYSTEMCTL_BIN" --user is-active --quiet "$UNIT"
+}
+
+state_value() {
+  local key="$1"
+  [[ -f $STATE_FILE ]] || return 0
+  awk -F= -v wanted="$key" '$1 == wanted { sub(/^[^=]*=/, ""); print; exit }' "$STATE_FILE"
+}
+
+write_reason() {
+  local reason="$1"
+  ensure_runtime_dir
+  printf '%s\n' "$reason" >"$LAST_REASON_FILE"
+}
+
+last_reason() {
+  if [[ -r $LAST_REASON_FILE ]]; then
+    head -n 1 "$LAST_REASON_FILE"
+  else
+    printf 'never-started\n'
+  fi
+}
+
+notify_state() {
+  local active="$1"
+  local detail="$2"
+  command -v omarchy-notification-send >/dev/null 2>&1 || return 0
+  if [[ $active == true ]]; then
+    omarchy-notification-send -g "$ICON" "Server Mode is ON — $detail"
+  else
+    omarchy-notification-send -g "$ICON" "Server Mode is OFF — $detail"
+  fi
+}
+
+wait_until_unit_gone() {
+  local attempt load_state
+  for attempt in {1..40}; do
+    load_state=$("$SYSTEMCTL_BIN" --user show "$UNIT" --property=LoadState --value 2>/dev/null || true)
+    if [[ -z $load_state || $load_state == not-found ]]; then
+      return 0
+    fi
+    sleep 0.05
+  done
+  fail "timed out waiting for $UNIT to be collected"
+}
+
+stop_unit() {
+  if unit_is_active; then
+    "$SYSTEMCTL_BIN" --user stop "$UNIT"
+  fi
+  wait_until_unit_gone
+}
+
+start_mode() {
+  local scope="full"
+  local duration_minutes=0
+  local lease_seconds=45
+  local should_notify=false
+
+  while (( $# > 0 )); do
+    case "$1" in
+      --scope)
+        [[ $# -ge 2 ]] || fail "--scope requires a value"
+        scope="$2"
+        shift 2
+        ;;
+      --duration-minutes)
+        [[ $# -ge 2 ]] || fail "--duration-minutes requires a value"
+        duration_minutes="$2"
+        shift 2
+        ;;
+      --lease-seconds)
+        [[ $# -ge 2 ]] || fail "--lease-seconds requires a value"
+        lease_seconds="$2"
+        shift 2
+        ;;
+      --notify)
+        should_notify=true
+        shift
+        ;;
+      *)
+        fail "unknown on option: $1"
+        ;;
+    esac
+  done
+
+  [[ $scope == full || $scope == lid ]] || fail "scope must be 'full' or 'lid'"
+  is_uint "$duration_minutes" || fail "duration must be a non-negative integer"
+  is_uint "$lease_seconds" || fail "lease must be a positive integer"
+  (( lease_seconds >= 20 && lease_seconds <= 300 )) || fail "lease must be between 20 and 300 seconds"
+  (( duration_minutes <= 10080 )) || fail "duration cannot exceed 10080 minutes"
+
+  local now deadline what why
+  now=$(date +%s)
+  deadline=0
+  if (( duration_minutes > 0 )); then
+    deadline=$((now + duration_minutes * 60))
+  fi
+
+  if [[ $scope == lid ]]; then
+    what="handle-lid-switch"
+    why="Keep running when the laptop lid is closed"
+  else
+    what="sleep:handle-lid-switch"
+    why="Keep this computer available for remote access"
+  fi
+
+  ensure_runtime_dir
+  stop_unit
+
+  local state_tmp="$RUNTIME_DIR/state.$$"
+  printf 'scope=%s\nstarted=%s\ndeadline=%s\nlease=%s\n' \
+    "$scope" "$now" "$deadline" "$lease_seconds" >"$state_tmp"
+  mv "$state_tmp" "$STATE_FILE"
+  : >"$HEARTBEAT_FILE"
+  write_reason "active"
+
+  if ! "$SYSTEMD_RUN_BIN" --user \
+      --unit="$UNIT_NAME" \
+      --collect \
+      --quiet \
+      --description="Omarchy Server Mode" \
+      --property="KillMode=control-group" \
+      --property="TimeoutStopSec=5" \
+      -- \
+      "$SELF" hold "$what" "$why" "$deadline" "$lease_seconds" "$HEARTBEAT_FILE" "$LAST_REASON_FILE"; then
+    write_reason "start-failed"
+    fail "could not start the inhibitor unit"
+  fi
+
+  unit_is_active || fail "the inhibitor unit did not become active"
+  if [[ $should_notify == true ]]; then
+    if [[ $scope == lid ]]; then
+      notify_state true "lid-close suspend is blocked"
+    else
+      notify_state true "sleep is blocked"
+    fi
+  fi
+}
+
+stop_mode() {
+  local should_notify=false
+  local reason="manual"
+  while (( $# > 0 )); do
+    case "$1" in
+      --notify)
+        should_notify=true
+        shift
+        ;;
+      --reason)
+        [[ $# -ge 2 ]] || fail "--reason requires a value"
+        reason="$2"
+        shift 2
+        ;;
+      *)
+        fail "unknown off option: $1"
+        ;;
+    esac
+  done
+
+  stop_unit
+  write_reason "$reason"
+  if [[ $should_notify == true ]]; then
+    notify_state false "normal sleep is restored"
+  fi
+}
+
+renew_lease() {
+  unit_is_active || return 1
+  ensure_runtime_dir
+  touch "$HEARTBEAT_FILE"
+}
+
+watchdog() {
+  local deadline="$1"
+  local lease_seconds="$2"
+  local heartbeat_file="$3"
+  local reason_file="$4"
+  local now heartbeat_mtime
+
+  while true; do
+    now=$(date +%s)
+    if (( deadline > 0 && now >= deadline )); then
+      printf 'duration-expired\n' >"$reason_file"
+      return 0
+    fi
+    if [[ ! -e $heartbeat_file ]]; then
+      printf 'lease-expired\n' >"$reason_file"
+      return 0
+    fi
+    heartbeat_mtime=$(stat -c %Y "$heartbeat_file" 2>/dev/null || printf '0')
+    if (( now - heartbeat_mtime > lease_seconds )); then
+      printf 'lease-expired\n' >"$reason_file"
+      return 0
+    fi
+    sleep 5
+  done
+}
+
+hold_inhibitor() {
+  local what="$1"
+  local why="$2"
+  local deadline="$3"
+  local lease_seconds="$4"
+  local heartbeat_file="$5"
+  local reason_file="$6"
+
+  exec "$SYSTEMD_INHIBIT_BIN" \
+    --what="$what" \
+    --who="Omarchy Server Mode" \
+    --why="$why" \
+    --mode=block \
+    -- \
+    "$SELF" watchdog "$deadline" "$lease_seconds" "$heartbeat_file" "$reason_file"
+}
+
+status_mode() {
+  local json=false
+  [[ ${1:-} == --json ]] && json=true
+
+  local active=false scope started deadline lease reason now remaining
+  if unit_is_active; then active=true; fi
+  scope=$(state_value scope)
+  started=$(state_value started)
+  deadline=$(state_value deadline)
+  lease=$(state_value lease)
+  reason=$(last_reason)
+  now=$(date +%s)
+  scope=${scope:-full}
+  started=${started:-0}
+  deadline=${deadline:-0}
+  lease=${lease:-45}
+  remaining=0
+  if [[ $active == true && $deadline =~ ^[0-9]+$ && $deadline -gt 0 ]]; then
+    remaining=$((deadline - now))
+    (( remaining < 0 )) && remaining=0
+  fi
+
+  if [[ $json == true ]]; then
+    "$JQ_BIN" -cn \
+      --argjson active "$active" \
+      --arg scope "$scope" \
+      --argjson started "$started" \
+      --argjson deadline "$deadline" \
+      --argjson remaining "$remaining" \
+      --argjson lease "$lease" \
+      --arg reason "$reason" \
+      '{active:$active,scope:$scope,started:$started,deadline:$deadline,remainingSeconds:$remaining,leaseSeconds:$lease,lastReason:$reason}'
+    return 0
+  fi
+
+  if [[ $active == true ]]; then
+    printf 'on\n'
+    return 0
+  fi
+  printf 'off\n'
+  return 1
+}
+
+command_installed() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+process_running() {
+  pgrep -x "$1" >/dev/null 2>&1
+}
+
+diagnostics() {
+  local json=false
+  [[ ${1:-} == --json ]] && json=true
+
+  local host user lan_ip tailscale_ip tailscale_name ssh_port
+  local tailscale_installed=false tailscale_active=false
+  local ssh_installed=false ssh_active=false
+  local sunshine_installed=false sunshine_active=false
+  local rustdesk_installed=false rustdesk_active=false
+  local wayvnc_installed=false wayvnc_active=false
+
+  host=$(hostname 2>/dev/null || printf 'unknown')
+  user=$(id -un)
+  lan_ip=""
+  if command_installed ip; then
+    lan_ip=$(ip -j -4 addr show up scope global 2>/dev/null | "$JQ_BIN" -r '
+      [ .[]
+        | select((.ifname | startswith("tailscale")) | not)
+        | .addr_info[]?
+        | select(.scope == "global")
+        | .local
+      ][0] // ""' 2>/dev/null || true)
+  fi
+
+  tailscale_ip=""
+  tailscale_name=""
+  if command_installed tailscale; then
+    tailscale_installed=true
+    if timeout 2 tailscale status --json >/dev/null 2>&1; then
+      tailscale_active=true
+      tailscale_ip=$(timeout 2 tailscale ip -4 2>/dev/null | head -n 1 || true)
+      tailscale_name=$(timeout 2 tailscale status --json 2>/dev/null | "$JQ_BIN" -r '.Self.DNSName // "" | sub("\\.$"; "")' 2>/dev/null || true)
+    fi
+  fi
+
+  ssh_port=22
+  if command_installed sshd; then
+    ssh_installed=true
+    ssh_port=$(timeout 2 sshd -T 2>/dev/null | awk '$1 == "port" { print $2; exit }' || true)
+    ssh_port=${ssh_port:-22}
+  fi
+  if "$SYSTEMCTL_BIN" is-active --quiet sshd.service 2>/dev/null; then ssh_active=true; fi
+
+  if command_installed sunshine; then sunshine_installed=true; fi
+  if process_running sunshine; then sunshine_active=true; fi
+  if command_installed rustdesk; then rustdesk_installed=true; fi
+  if process_running rustdesk; then rustdesk_active=true; fi
+  if command_installed wayvnc; then wayvnc_installed=true; fi
+  if process_running wayvnc; then wayvnc_active=true; fi
+
+  if [[ $json != true ]]; then
+    printf 'Host: %s\nLAN: %s\nTailscale: %s\nSSH: %s:%s\n' \
+      "$host" "${lan_ip:-unavailable}" "${tailscale_ip:-unavailable}" \
+      "$([[ $ssh_active == true ]] && printf active || printf inactive)" "$ssh_port"
+    return 0
+  fi
+
+  "$JQ_BIN" -cn \
+    --arg hostname "$host" \
+    --arg user "$user" \
+    --arg lanIp "$lan_ip" \
+    --argjson tailscaleInstalled "$tailscale_installed" \
+    --argjson tailscaleActive "$tailscale_active" \
+    --arg tailscaleIp "$tailscale_ip" \
+    --arg tailscaleName "$tailscale_name" \
+    --argjson sshInstalled "$ssh_installed" \
+    --argjson sshActive "$ssh_active" \
+    --argjson sshPort "$ssh_port" \
+    --argjson sunshineInstalled "$sunshine_installed" \
+    --argjson sunshineActive "$sunshine_active" \
+    --argjson rustdeskInstalled "$rustdesk_installed" \
+    --argjson rustdeskActive "$rustdesk_active" \
+    --argjson wayvncInstalled "$wayvnc_installed" \
+    --argjson wayvncActive "$wayvnc_active" \
+    '{hostname:$hostname,user:$user,lanIp:$lanIp,
+      tailscale:{installed:$tailscaleInstalled,active:$tailscaleActive,ip:$tailscaleIp,name:$tailscaleName},
+      ssh:{installed:$sshInstalled,active:$sshActive,port:$sshPort},
+      remoteDesktop:{
+        sunshine:{installed:$sunshineInstalled,active:$sunshineActive},
+        rustdesk:{installed:$rustdeskInstalled,active:$rustdeskActive},
+        wayvnc:{installed:$wayvncInstalled,active:$wayvncActive}
+      }}'
+}
+
+toggle_mode() {
+  if unit_is_active; then
+    stop_mode "$@"
+  else
+    start_mode "$@"
+  fi
+}
+
+case "${1:-status}" in
+  on|enable|start)
+    shift
+    start_mode "$@"
+    ;;
+  off|disable|stop)
+    shift
+    stop_mode "$@"
+    ;;
+  toggle)
+    shift
+    toggle_mode "$@"
+    ;;
+  renew)
+    renew_lease
+    ;;
+  status)
+    shift
+    status_mode "$@"
+    ;;
+  diagnostics)
+    shift
+    diagnostics "$@"
+    ;;
+  hold)
+    shift
+    [[ $# -eq 6 ]] || fail "internal hold arguments are invalid"
+    hold_inhibitor "$@"
+    ;;
+  watchdog)
+    shift
+    [[ $# -eq 4 ]] || fail "internal watchdog arguments are invalid"
+    watchdog "$@"
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
