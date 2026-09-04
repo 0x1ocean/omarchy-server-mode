@@ -1,8 +1,8 @@
-# Remote Server Mode for Omarchy
+# Server Mode — Remote Access for Omarchy
 
 Turn an Omarchy laptop or desktop into a dependable remote workstation without
 leaving sleep prevention, connection addresses, and service status scattered
-across terminal commands. Remote Server Mode lives in the Omarchy bar and gives
+across terminal commands. Server Mode lives in the Omarchy bar and gives
 you one focused control panel for power protection and remote-access readiness.
 
 It can keep the machine awake for an entire login session or a fixed amount of
@@ -11,14 +11,14 @@ and stop automatically when battery conditions become unsafe. The Access view
 shows the current LAN and Tailscale addresses plus live SSH and remote-desktop
 status for Sunshine, RustDesk, and WayVNC.
 
-![Remote Server Mode open on a clean Omarchy workspace](preview.png)
+![Server Mode open on a clean Omarchy workspace](preview.png)
 
 ## Why use it?
 
 Remote access is only useful while the computer remains reachable. A laptop can
 quietly suspend when its lid closes, a temporary stay-awake command can be
 forgotten, and a cached VPN address can look valid even after the VPN disconnects.
-Remote Server Mode brings those signals together and makes the active protection
+Server Mode brings those signals together and makes the active protection
 visible from the bar.
 
 Typical uses include:
@@ -53,7 +53,7 @@ and keeps power behaviour explicit.
 omarchy plugin add https://github.com/0x1ocean/omarchy-server-mode.git --enable
 ```
 
-The Remote Server Mode icon appears in the right section of the Omarchy bar.
+The Server Mode icon appears in the right section of the Omarchy bar.
 Plugins execute as the current user and are not sandboxed, so review the source
 before enabling this or any third-party Omarchy plugin.
 
@@ -169,7 +169,7 @@ A laptop may rely on an open lid for cooling. Check the manufacturer's thermal
 guidance before running sustained workloads with the lid closed, and keep the
 low-battery cutoff enabled when appropriate.
 
-Remote Server Mode stores no passwords, private keys, tokens, or remote network
+Server Mode stores no passwords, private keys, tokens, or remote network
 data. Diagnostics remain local in Omarchy Shell memory. For the full trust boundary
 and lifecycle guarantees, see [SECURITY.md](SECURITY.md).
 

@@ -160,7 +160,7 @@ Item {
       onStreamFinished: root.applyStatus(text)
     }
     onExited: function(exitCode) {
-      if (exitCode !== 0) root.lastError = "Could not read Remote Server Mode status"
+      if (exitCode !== 0) root.lastError = "Could not read Server Mode status"
     }
   }
 
@@ -177,7 +177,7 @@ Item {
     id: actionProcess
     onExited: function(exitCode) {
       root.busy = false
-      if (exitCode !== 0) root.lastError = "Remote Server Mode action failed"
+      if (exitCode !== 0) root.lastError = "Server Mode action failed"
       root.refreshAll()
     }
   }

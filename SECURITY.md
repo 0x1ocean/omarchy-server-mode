@@ -5,11 +5,11 @@
 Omarchy plugins run unsandboxed with the current user's permissions. Review the
 source before enabling this plugin or any update.
 
-Remote Server Mode's core does not require root. It starts one transient user-systemd
+Server Mode's core does not require root. It starts one transient user-systemd
 unit whose only purpose is to hold a systemd inhibitor while a bounded heartbeat
 lease is valid.
 
-## What Remote Server Mode does not do
+## What Server Mode does not do
 
 - It does not edit files under `/etc`.
 - It does not install packages or download executable code.

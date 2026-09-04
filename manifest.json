@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "io.github.0x1ocean.server-mode",
-  "name": "Remote Server Mode",
+  "name": "Server Mode — Remote Access for Omarchy",
   "version": "1.0.0",
   "author": "0x1ocean",
   "license": "MIT",
@@ -15,7 +15,7 @@
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "Remote Server Mode",
+    "displayName": "Server Mode",
     "description": "Keep this computer awake for remote work and check LAN, Tailscale, SSH, and remote desktop readiness.",
     "category": "System",
     "allowMultiple": false,
@@ -47,7 +47,7 @@
         "key": "defaultDurationMinutes",
         "type": "integer",
         "label": "Default duration (minutes)",
-        "description": "Use 0 to keep Remote Server Mode active until logout or until you turn it off.",
+        "description": "Use 0 to keep Server Mode active until logout or until you turn it off.",
         "min": 0,
         "max": 10080,
         "step": 30,
@@ -57,14 +57,14 @@
         "key": "autoStart",
         "type": "boolean",
         "label": "Start on login",
-        "description": "Enable Remote Server Mode when the Omarchy shell starts.",
+        "description": "Enable Server Mode when the Omarchy shell starts.",
         "defaultValue": false
       },
       {
         "key": "autoStartOnAc",
         "type": "boolean",
         "label": "Start when plugged in",
-        "description": "Enable Remote Server Mode when a laptop switches from battery to external power.",
+        "description": "Enable Server Mode when a laptop switches from battery to external power.",
         "defaultValue": false
       },
       {
@@ -78,7 +78,7 @@
         "key": "minimumBatteryPercent",
         "type": "integer",
         "label": "Low-battery cutoff (%)",
-        "description": "Stop Remote Server Mode at this charge while on battery. Use 0 to disable the cutoff.",
+        "description": "Stop Server Mode at this charge while on battery. Use 0 to disable the cutoff.",
         "min": 0,
         "max": 95,
         "step": 5,
@@ -88,7 +88,7 @@
         "key": "notifications",
         "type": "boolean",
         "label": "Notifications",
-        "description": "Show a notification when Remote Server Mode changes state.",
+        "description": "Show a notification when Server Mode changes state.",
         "defaultValue": false
       },
       {
