@@ -23,7 +23,6 @@ Item {
   property bool previousOnBattery: UPower.onBattery
 
   readonly property string pluginId: "io.github.0x1ocean.server-mode"
-  readonly property int maxDiagnosticsCharacters: 4096
   readonly property string helperPath: Qt.resolvedUrl("server-mode").toString().replace("file://", "")
   readonly property bool batteryPresent: !!(UPower.displayDevice && UPower.displayDevice.isPresent)
   readonly property int batteryPercent: batteryPresent
@@ -77,10 +76,7 @@ Item {
   }
 
   function applyDiagnostics(raw) {
-    var text = String(raw || "")
-    if (text.length > root.maxDiagnosticsCharacters) return
-    var value = Model.parseObject(text, {})
-    if (value.hostname !== undefined) root.diagnostics = value
+    root.diagnostics = Model.parseDiagnostics(raw)
   }
 
   function refresh() {
@@ -101,9 +97,6 @@ Item {
   }
 
   function enableWith(nextScope, minutes) {
-    if (actionProcess.running) return
-    root.busy = true
-    root.lastError = ""
     var command = [
       root.helperPath,
       "on",
@@ -111,16 +104,17 @@ Item {
       "--duration-minutes", String(Model.durationMinutes(minutes)),
       "--lease-seconds", "45"
     ]
-    if (root.notificationsEnabled) command.push("--notify")
-    actionProcess.command = command
-    actionProcess.running = true
+    runAction(command)
   }
 
   function disable(reason) {
+    runAction([root.helperPath, "off", "--reason", String(reason || "manual")])
+  }
+
+  function runAction(command) {
     if (actionProcess.running) return
     root.busy = true
     root.lastError = ""
-    var command = [root.helperPath, "off", "--reason", String(reason || "manual")]
     if (root.notificationsEnabled) command.push("--notify")
     actionProcess.command = command
     actionProcess.running = true
