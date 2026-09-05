@@ -356,6 +356,8 @@ read_tailscale_fields() {
     return 1
   fi
 
+  # jq variables are expanded by jq, so the filter must remain single-quoted.
+  # shellcheck disable=SC2016
   if ! fields=$("$TIMEOUT_BIN" 2 "$JQ_BIN" -jre '
       def text($max):
         if type == "string" then gsub("[[:cntrl:]]"; "")[0:$max] else "" end;
