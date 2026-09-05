@@ -337,31 +337,29 @@ capture_bounded() {
   local max_bytes="$2"
   shift 2
 
-  local complete=true
-  if ! "$@" 2>/dev/null | head -c "$((max_bytes + 1))" >"$target"; then
-    complete=false
-  fi
-
-  [[ $complete == true ]] && file_within_limit "$target" "$max_bytes"
+  "$@" 2>/dev/null | head -c "$((max_bytes + 1))" >"$target" || return 1
+  file_within_limit "$target" "$max_bytes"
 }
 
-read_tailscale_fields() {
-  local source fields
+read_tailscale_fields() (
+  local source
   ensure_runtime_dir
-  source=$(mktemp "$RUNTIME_DIR/tailscale-status.XXXXXX")
+  source=$(mktemp "$RUNTIME_DIR/tailscale-status.XXXXXX") || return 1
+  trap 'rm -f -- "$source"' EXIT
 
   if ! capture_bounded "$source" "$TAILSCALE_STATUS_MAX_BYTES" \
       "$TIMEOUT_BIN" 2 "$TAILSCALE_BIN" status --json; then
-    rm -f -- "$source"
     return 1
   fi
 
   # jq variables are expanded by jq, so the filter must remain single-quoted.
   # shellcheck disable=SC2016
-  if ! fields=$("$TIMEOUT_BIN" 2 "$JQ_BIN" -jre '
+  "$TIMEOUT_BIN" 2 "$JQ_BIN" -sre '
       def text($max):
         if type == "string" then gsub("[[:cntrl:]]"; "")[0:$max] else "" end;
-      (.BackendState // "Unknown" | text(32)) as $state
+      if length == 1 and (.[0] | type == "object") then .[0]
+      else error("expected exactly one status object") end
+      | (.BackendState // "Unknown" | text(32)) as $state
       | (($state == "Running") and (.Self.Online == true)) as $active
       | ([.Self.TailscaleIPs[]?
           | select(type == "string")
@@ -371,14 +369,8 @@ read_tailscale_fields() {
           (if $active then $ip else "" end),
           (if $active then $name else "" end)]
       | join("\u001f")
-    ' "$source" 2>/dev/null); then
-    rm -f -- "$source"
-    return 1
-  fi
-
-  rm -f -- "$source"
-  printf '%s\n' "$fields"
-}
+    ' "$source" 2>/dev/null
+)
 
 bounded_command_line() {
   local max_bytes="$1"
@@ -400,7 +392,7 @@ provider_status() {
   fi
 }
 
-diagnostics() {
+diagnostics() (
   local json=false
   [[ ${1:-} == --json ]] && json=true
 
@@ -445,8 +437,10 @@ diagnostics() {
     ssh_installed=true
     ssh_port=$("$TIMEOUT_BIN" 2 "$SSHD_BIN" -T 2>/dev/null | awk '$1 == "port" { print $2; exit }' || true)
     ssh_port=${ssh_port:-22}
-    if ! [[ $ssh_port =~ ^[0-9]+$ ]] || (( ssh_port < 1 || ssh_port > 65535 )); then
+    if ! [[ $ssh_port =~ ^[0-9]{1,5}$ ]] || (( 10#$ssh_port < 1 || 10#$ssh_port > 65535 )); then
       ssh_port=22
+    else
+      ssh_port=$((10#$ssh_port))
     fi
     if "$SYSTEMCTL_BIN" is-active --quiet sshd.service 2>/dev/null; then ssh_active=true; fi
   fi
@@ -464,11 +458,12 @@ diagnostics() {
 
   local diagnostics_file
   ensure_runtime_dir
-  diagnostics_file=$(mktemp "$RUNTIME_DIR/diagnostics.XXXXXX")
+  diagnostics_file=$(mktemp "$RUNTIME_DIR/diagnostics.XXXXXX") || return 1
+  trap 'rm -f -- "$diagnostics_file"' EXIT
 
   # jq variables are expanded by jq, so the filter must remain single-quoted.
   # shellcheck disable=SC2016
-  if ! "$JQ_BIN" -cn \
+  if ! capture_bounded "$diagnostics_file" "$DIAGNOSTICS_MAX_BYTES" "$JQ_BIN" -cn \
     --arg hostname "$host" \
     --arg user "$user" \
     --arg lanIp "$lan_ip" \
@@ -493,19 +488,12 @@ diagnostics() {
         sunshine:{installed:$sunshineInstalled,active:$sunshineActive},
         rustdesk:{installed:$rustdeskInstalled,active:$rustdeskActive},
         wayvnc:{installed:$wayvncInstalled,active:$wayvncActive}
-      }}' >"$diagnostics_file"; then
-    rm -f -- "$diagnostics_file"
-    fail "could not build diagnostics"
-  fi
-
-  if ! file_within_limit "$diagnostics_file" "$DIAGNOSTICS_MAX_BYTES"; then
-    rm -f -- "$diagnostics_file"
-    fail "diagnostics exceeded the safe output limit"
+      }}'; then
+    fail "could not build diagnostics within the safe output limit"
   fi
 
   cat "$diagnostics_file"
-  rm -f -- "$diagnostics_file"
-}
+)
 
 toggle_mode() {
   if unit_is_active; then
@@ -532,7 +520,7 @@ case "${1:-status}" in
     renew_lease
     ;;
   status)
-    shift
+    (( $# == 0 )) || shift
     status_mode "$@"
     ;;
   diagnostics)

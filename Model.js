@@ -15,6 +15,13 @@ function normalizedScope(value) {
   return "full"
 }
 
+function parseDiagnostics(raw) {
+  var text = String(raw || "")
+  if (text.length > 4096) return {}
+  var value = parseObject(text, {})
+  return typeof value.hostname === "string" ? value : {}
+}
+
 function scopeLabel(scope) {
   return normalizedScope(scope) === "lid" ? "Lid only" : "Full server"
 }
@@ -132,6 +139,7 @@ function connectionSummary(diagnostics) {
 if (typeof module !== "undefined") {
   module.exports = {
     parseObject: parseObject,
+    parseDiagnostics: parseDiagnostics,
     normalizedScope: normalizedScope,
     scopeLabel: scopeLabel,
     durationMinutes: durationMinutes,

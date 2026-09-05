@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2 - 2026-09-05
+
+- Share bounded capture between Tailscale input and final diagnostics output.
+- Scope temporary-file cleanup to each diagnostic operation.
+- Reject empty and multiple-document Tailscale responses.
+- Normalize SSH ports as bounded decimal integers.
+- Clear stale diagnostics on invalid responses and share QML action dispatch.
+- Fix invoking the helper without arguments and expand regression coverage.
+
 ## 1.0.1 - 2026-09-05
 
 - Capped Tailscale status at the producer boundary and reject truncated JSON.

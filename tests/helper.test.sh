@@ -53,6 +53,22 @@ case "$(cat "$SERVER_MODE_TEST_TAILSCALE_STATE")" in
   truncated)
     printf '%s\n' '{"BackendState":"Running","Self":{"Online":true'
     ;;
+  multiple)
+    printf '%s\n' '{"BackendState":"Running","Self":{"Online":true}}' '{}'
+    ;;
+  empty)
+    ;;
+  failed)
+    printf '%s\n' '{"BackendState":"Running","Self":{"Online":true}}'
+    exit 1
+    ;;
+  boundary|over-boundary)
+    document='{"BackendState":"Running","Self":{"Online":true}}'
+    printf '%s' "$document"
+    padding=$((1048576 - ${#document}))
+    [[ $(cat "$SERVER_MODE_TEST_TAILSCALE_STATE") == boundary ]] || padding=$((padding + 1))
+    head -c "$padding" /dev/zero | tr '\0' ' '
+    ;;
   long-fields)
     long_ip=$(printf '%0200d' 0)
     long_name=$(printf '%0400d' 0)
@@ -68,7 +84,7 @@ cat >"$TEST_DIR/bin/sshd" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ ${1:-} == -T ]] || exit 2
-printf 'port 2222\n'
+printf 'port %s\n' "${SERVER_MODE_TEST_SSH_PORT:-2222}"
 SH
 
 cat >"$TEST_DIR/bin/ip" <<'SH'
@@ -179,13 +195,28 @@ for provider in sunshine rustdesk wayvnc; do
 done
 
 # Reject invalid or oversized Tailscale documents instead of parsing partial data.
-for state in oversized truncated; do
+for state in oversized truncated multiple empty failed over-boundary; do
   printf '%s\n' "$state" >"$TEST_DIR/tailscale-state"
   diagnostics_json=$("$ROOT/server-mode" diagnostics --json)
   jq -e '
     .tailscale == {installed:true,active:false,state:"Unknown",ip:"",name:""}
   ' <<<"$diagnostics_json" >/dev/null
   (( $(printf '%s' "$diagnostics_json" | wc -c) <= 4096 ))
+done
+
+# An exactly 1 MiB JSON document is accepted, including trailing whitespace.
+printf 'boundary\n' >"$TEST_DIR/tailscale-state"
+"$ROOT/server-mode" diagnostics --json | jq -e '.tailscale.active == true' >/dev/null
+
+for port in 00080 08 65535 65536 999999999999999999999 invalid 0; do
+  case "$port" in
+    00080) expected=80 ;;
+    08) expected=8 ;;
+    65535) expected=65535 ;;
+    *) expected=22 ;;
+  esac
+  SERVER_MODE_TEST_SSH_PORT="$port" "$ROOT/server-mode" diagnostics --json \
+    | jq -e --argjson expected "$expected" '.ssh.port == $expected' >/dev/null
 done
 
 # Bound every selected Tailscale string before it reaches the final response.
@@ -199,8 +230,26 @@ jq -e '
 ' <<<"$diagnostics_json" >/dev/null
 (( $(printf '%s' "$diagnostics_json" | wc -c) <= 4096 ))
 
+# Final output is rejected before emitting even a partial JSON response.
+cat >"$TEST_DIR/bin/oversized-jq" <<'SH'
+#!/usr/bin/env bash
+if [[ ${1:-} == -cn ]]; then
+  head -c 4097 /dev/zero | tr '\0' x
+else
+  exec jq "$@"
+fi
+SH
+chmod +x "$TEST_DIR/bin/oversized-jq"
+if SERVER_MODE_JQ_BIN="$TEST_DIR/bin/oversized-jq" "$ROOT/server-mode" diagnostics --json \
+    >"$TEST_DIR/rejected-output" 2>/dev/null; then
+  echo "expected oversized final diagnostics to fail" >&2
+  exit 1
+fi
+[[ ! -s $TEST_DIR/rejected-output ]]
+
 # Bounded capture files are always removed after success or rejection.
-if compgen -G "$TEST_DIR/runtime/tailscale-status.*" >/dev/null; then
+if compgen -G "$TEST_DIR/runtime/tailscale-status.*" >/dev/null \
+    || compgen -G "$TEST_DIR/runtime/diagnostics.*" >/dev/null; then
   echo "temporary Tailscale status file was not removed" >&2
   exit 1
 fi

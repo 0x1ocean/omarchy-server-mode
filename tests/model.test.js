@@ -65,4 +65,8 @@ assert.equal(model.remoteDesktopSummary({
 }), "WayVNC running");
 assert.deepEqual(model.parseObject("not-json", { ok: false }), { ok: false });
 
+assert.equal(model.parseDiagnostics(JSON.stringify(diagnostics)).hostname, "arc");
+for (const invalid of ["", "not-json", "[]", "null", '{"hostname":42}', " ".repeat(4097)]) {
+  assert.equal(Object.keys(model.parseDiagnostics(invalid)).length, 0);
+}
 console.log("Model tests passed");
