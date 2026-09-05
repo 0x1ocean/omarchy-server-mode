@@ -84,7 +84,8 @@ The Access view reports, but does not configure, the following integrations:
 
 - **LAN:** the first usable global private IPv4 address.
 - **Tailscale:** an IP address and MagicDNS name only when the local node is online;
-  cached addresses are deliberately ignored after disconnecting.
+  cached addresses are deliberately ignored after disconnecting. Status input is
+  capped before parsing and truncated documents are rejected.
 - **SSH:** OpenSSH server installation, `sshd.service` state, configured port, and
   a copyable command using the preferred address.
 - **Remote desktop:** installation and live process state for Sunshine, RustDesk,

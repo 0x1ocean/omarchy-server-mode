@@ -23,6 +23,7 @@ Item {
   property bool previousOnBattery: UPower.onBattery
 
   readonly property string pluginId: "io.github.0x1ocean.server-mode"
+  readonly property int maxDiagnosticsCharacters: 4096
   readonly property string helperPath: Qt.resolvedUrl("server-mode").toString().replace("file://", "")
   readonly property bool batteryPresent: !!(UPower.displayDevice && UPower.displayDevice.isPresent)
   readonly property int batteryPercent: batteryPresent
@@ -76,7 +77,9 @@ Item {
   }
 
   function applyDiagnostics(raw) {
-    var value = Model.parseObject(raw, {})
+    var text = String(raw || "")
+    if (text.length > root.maxDiagnosticsCharacters) return
+    var value = Model.parseObject(text, {})
     if (value.hostname !== undefined) root.diagnostics = value
   }
 

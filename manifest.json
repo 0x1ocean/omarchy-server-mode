@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.0x1ocean.server-mode",
   "name": "Server Mode — Remote Access for Omarchy",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "0x1ocean",
   "license": "MIT",
   "description": "Keep an Omarchy laptop or desktop reachable for remote work: prevent sleep or lid-close suspend, set timed sessions and battery safeguards, and monitor LAN, Tailscale, SSH, Sunshine, RustDesk, and WayVNC readiness from the bar.",

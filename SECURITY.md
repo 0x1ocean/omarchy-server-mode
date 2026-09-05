@@ -20,7 +20,10 @@ lease is valid.
 
 Diagnostics read the local hostname, global IPv4 addresses, Tailscale status,
 systemd's SSH service state, and the presence of supported remote-screen
-processes. Results stay in memory inside the Omarchy shell.
+processes. Tailscale output is capped at 1 MiB before parsing; truncated input is
+rejected, selected strings are bounded, and the final diagnostics response is
+limited to 4 KiB before QML receives it. Results stay in memory inside the
+Omarchy shell.
 
 ## Lifecycle guarantee
 

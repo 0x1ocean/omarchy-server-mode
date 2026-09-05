@@ -45,6 +45,21 @@ case "$(cat "$SERVER_MODE_TEST_TAILSCALE_STATE")" in
   stopped)
     printf '%s\n' '{"BackendState":"Stopped","Self":{"Online":false,"TailscaleIPs":["100.64.0.8"],"DNSName":"test.tailnet.ts.net."}}'
     ;;
+  oversized)
+    printf '%s' '{"BackendState":"Running","Self":{"Online":true,"TailscaleIPs":["100.64.0.8"],"DNSName":"test.tailnet.ts.net."},"padding":"'
+    head -c 1100000 /dev/zero | tr '\0' x
+    printf '%s\n' '"}'
+    ;;
+  truncated)
+    printf '%s\n' '{"BackendState":"Running","Self":{"Online":true'
+    ;;
+  long-fields)
+    long_ip=$(printf '%0200d' 0)
+    long_name=$(printf '%0400d' 0)
+    long_name=${long_name//0/a}
+    printf '{"BackendState":"Running","Self":{"Online":true,"TailscaleIPs":["%s"],"DNSName":"%s"}}\n' \
+      "$long_ip" "$long_name"
+    ;;
   *) exit 1 ;;
 esac
 SH
@@ -162,6 +177,33 @@ for provider in sunshine rustdesk wayvnc; do
     .remoteDesktop[$provider] == {installed:true,active:true}
   ' <<<"$diagnostics_json" >/dev/null
 done
+
+# Reject invalid or oversized Tailscale documents instead of parsing partial data.
+for state in oversized truncated; do
+  printf '%s\n' "$state" >"$TEST_DIR/tailscale-state"
+  diagnostics_json=$("$ROOT/server-mode" diagnostics --json)
+  jq -e '
+    .tailscale == {installed:true,active:false,state:"Unknown",ip:"",name:""}
+  ' <<<"$diagnostics_json" >/dev/null
+  (( $(printf '%s' "$diagnostics_json" | wc -c) <= 4096 ))
+done
+
+# Bound every selected Tailscale string before it reaches the final response.
+printf 'long-fields\n' >"$TEST_DIR/tailscale-state"
+diagnostics_json=$("$ROOT/server-mode" diagnostics --json)
+jq -e '
+  .tailscale.active == true and
+  (.tailscale.state | length) <= 32 and
+  (.tailscale.ip | length) <= 64 and
+  (.tailscale.name | length) <= 253
+' <<<"$diagnostics_json" >/dev/null
+(( $(printf '%s' "$diagnostics_json" | wc -c) <= 4096 ))
+
+# Bounded capture files are always removed after success or rejection.
+if compgen -G "$TEST_DIR/runtime/tailscale-status.*" >/dev/null; then
+  echo "temporary Tailscale status file was not removed" >&2
+  exit 1
+fi
 
 # Missing optional programs must never be reported as installed or active.
 export SERVER_MODE_TAILSCALE_BIN="$TEST_DIR/bin/missing-tailscale"

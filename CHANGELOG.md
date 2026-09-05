@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 - 2026-09-05
+
+- Capped Tailscale status at the producer boundary and reject truncated JSON.
+- Reduced Tailscale parsing to one bounded `jq` projection of the required `Self` fields.
+- Bounded diagnostic strings and the final response before QML collection.
+- Simplified remote-screen provider detection and expanded hostile-input tests.
+
 ## 1.0.0 - 2026-09-04
 
 - Released the original local toggle as the public Server Mode plugin.

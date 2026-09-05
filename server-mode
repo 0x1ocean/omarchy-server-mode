@@ -21,6 +21,8 @@ readonly RUSTDESK_BIN="${SERVER_MODE_RUSTDESK_BIN:-rustdesk}"
 readonly WAYVNC_BIN="${SERVER_MODE_WAYVNC_BIN:-wayvnc}"
 readonly SELF="${SERVER_MODE_SELF:-$(readlink -f "$0")}"
 readonly ICON="\uf233"
+readonly TAILSCALE_STATUS_MAX_BYTES=1048576
+readonly DIAGNOSTICS_MAX_BYTES=4096
 
 usage() {
   cat <<'USAGE'
@@ -322,19 +324,95 @@ process_running() {
   "$PGREP_BIN" -x "$1" >/dev/null 2>&1
 }
 
+file_within_limit() {
+  local file="$1"
+  local max_bytes="$2"
+  local bytes
+  bytes=$(wc -c <"$file")
+  (( bytes <= max_bytes ))
+}
+
+capture_bounded() {
+  local target="$1"
+  local max_bytes="$2"
+  shift 2
+
+  local complete=true
+  if ! "$@" 2>/dev/null | head -c "$((max_bytes + 1))" >"$target"; then
+    complete=false
+  fi
+
+  [[ $complete == true ]] && file_within_limit "$target" "$max_bytes"
+}
+
+read_tailscale_fields() {
+  local source fields
+  ensure_runtime_dir
+  source=$(mktemp "$RUNTIME_DIR/tailscale-status.XXXXXX")
+
+  if ! capture_bounded "$source" "$TAILSCALE_STATUS_MAX_BYTES" \
+      "$TIMEOUT_BIN" 2 "$TAILSCALE_BIN" status --json; then
+    rm -f -- "$source"
+    return 1
+  fi
+
+  if ! fields=$("$TIMEOUT_BIN" 2 "$JQ_BIN" -jre '
+      def text($max):
+        if type == "string" then gsub("[[:cntrl:]]"; "")[0:$max] else "" end;
+      (.BackendState // "Unknown" | text(32)) as $state
+      | (($state == "Running") and (.Self.Online == true)) as $active
+      | ([.Self.TailscaleIPs[]?
+          | select(type == "string")
+          | select(contains(":") | not)][0] // "" | text(64)) as $ip
+      | (.Self.DNSName // "" | text(253) | sub("\\.$"; "")) as $name
+      | [$state, ($active | tostring),
+          (if $active then $ip else "" end),
+          (if $active then $name else "" end)]
+      | join("\u001f")
+    ' "$source" 2>/dev/null); then
+    rm -f -- "$source"
+    return 1
+  fi
+
+  rm -f -- "$source"
+  printf '%s\n' "$fields"
+}
+
+bounded_command_line() {
+  local max_bytes="$1"
+  shift
+  { "$@" 2>/dev/null || true; } \
+    | LC_ALL=C tr -d '\000-\037\177' \
+    | head -c "$max_bytes" || true
+}
+
+provider_status() {
+  local binary="$1"
+  local process="$2"
+  if ! command_installed "$binary"; then
+    printf 'false false\n'
+  elif process_running "$process"; then
+    printf 'true true\n'
+  else
+    printf 'true false\n'
+  fi
+}
+
 diagnostics() {
   local json=false
   [[ ${1:-} == --json ]] && json=true
 
-  local host user lan_ip tailscale_ip tailscale_name tailscale_state tailscale_status ssh_port
+  local host user lan_ip tailscale_ip tailscale_name tailscale_state tailscale_fields ssh_port
   local tailscale_installed=false tailscale_active=false
   local ssh_installed=false ssh_active=false
   local sunshine_installed=false sunshine_active=false
   local rustdesk_installed=false rustdesk_active=false
   local wayvnc_installed=false wayvnc_active=false
 
-  host=$(hostname 2>/dev/null || printf 'unknown')
-  user=$(id -un)
+  host=$(bounded_command_line 64 hostname)
+  user=$(bounded_command_line 64 id -un)
+  host=${host:-unknown}
+  user=${user:-unknown}
   lan_ip=""
   if command_installed "$IP_BIN"; then
     lan_ip=$("$IP_BIN" -j -4 addr show up scope global 2>/dev/null | "$JQ_BIN" -r '
@@ -343,24 +421,20 @@ diagnostics() {
         | .addr_info[]?
         | select(.scope == "global")
         | .local
-      ][0] // ""' 2>/dev/null || true)
+        | select(type == "string")
+        | select(test("^[0-9.]+$"))
+      ][0] // "" | .[0:64]' 2>/dev/null || true)
   fi
 
   tailscale_ip=""
   tailscale_name=""
   tailscale_state="Unavailable"
-  tailscale_status=""
   if command_installed "$TAILSCALE_BIN"; then
     tailscale_installed=true
-    tailscale_status=$("$TIMEOUT_BIN" 2 "$TAILSCALE_BIN" status --json 2>/dev/null || true)
-    tailscale_state=$("$JQ_BIN" -r '.BackendState // "Unknown"' <<<"$tailscale_status" 2>/dev/null || printf 'Unknown')
-    if "$JQ_BIN" -e '.BackendState == "Running" and .Self.Online == true' \
-        <<<"$tailscale_status" >/dev/null 2>&1; then
-      tailscale_active=true
-      tailscale_ip=$("$JQ_BIN" -r '[.Self.TailscaleIPs[]? | select(contains(":") | not)][0] // ""' \
-        <<<"$tailscale_status" 2>/dev/null || true)
-      tailscale_name=$("$JQ_BIN" -r '.Self.DNSName // "" | sub("\\.$"; "")' \
-        <<<"$tailscale_status" 2>/dev/null || true)
+    tailscale_state="Unknown"
+    if tailscale_fields=$(read_tailscale_fields); then
+      IFS=$'\x1f' read -r tailscale_state tailscale_active tailscale_ip tailscale_name \
+        <<<"$tailscale_fields"
     fi
   fi
 
@@ -369,21 +443,15 @@ diagnostics() {
     ssh_installed=true
     ssh_port=$("$TIMEOUT_BIN" 2 "$SSHD_BIN" -T 2>/dev/null | awk '$1 == "port" { print $2; exit }' || true)
     ssh_port=${ssh_port:-22}
+    if ! [[ $ssh_port =~ ^[0-9]+$ ]] || (( ssh_port < 1 || ssh_port > 65535 )); then
+      ssh_port=22
+    fi
     if "$SYSTEMCTL_BIN" is-active --quiet sshd.service 2>/dev/null; then ssh_active=true; fi
   fi
 
-  if command_installed "$SUNSHINE_BIN"; then
-    sunshine_installed=true
-    if process_running sunshine; then sunshine_active=true; fi
-  fi
-  if command_installed "$RUSTDESK_BIN"; then
-    rustdesk_installed=true
-    if process_running rustdesk; then rustdesk_active=true; fi
-  fi
-  if command_installed "$WAYVNC_BIN"; then
-    wayvnc_installed=true
-    if process_running wayvnc; then wayvnc_active=true; fi
-  fi
+  read -r sunshine_installed sunshine_active < <(provider_status "$SUNSHINE_BIN" sunshine)
+  read -r rustdesk_installed rustdesk_active < <(provider_status "$RUSTDESK_BIN" rustdesk)
+  read -r wayvnc_installed wayvnc_active < <(provider_status "$WAYVNC_BIN" wayvnc)
 
   if [[ $json != true ]]; then
     printf 'Host: %s\nLAN: %s\nTailscale: %s\nSSH: %s:%s\n' \
@@ -392,9 +460,13 @@ diagnostics() {
     return 0
   fi
 
+  local diagnostics_file
+  ensure_runtime_dir
+  diagnostics_file=$(mktemp "$RUNTIME_DIR/diagnostics.XXXXXX")
+
   # jq variables are expanded by jq, so the filter must remain single-quoted.
   # shellcheck disable=SC2016
-  "$JQ_BIN" -cn \
+  if ! "$JQ_BIN" -cn \
     --arg hostname "$host" \
     --arg user "$user" \
     --arg lanIp "$lan_ip" \
@@ -419,7 +491,18 @@ diagnostics() {
         sunshine:{installed:$sunshineInstalled,active:$sunshineActive},
         rustdesk:{installed:$rustdeskInstalled,active:$rustdeskActive},
         wayvnc:{installed:$wayvncInstalled,active:$wayvncActive}
-      }}'
+      }}' >"$diagnostics_file"; then
+    rm -f -- "$diagnostics_file"
+    fail "could not build diagnostics"
+  fi
+
+  if ! file_within_limit "$diagnostics_file" "$DIAGNOSTICS_MAX_BYTES"; then
+    rm -f -- "$diagnostics_file"
+    fail "diagnostics exceeded the safe output limit"
+  fi
+
+  cat "$diagnostics_file"
+  rm -f -- "$diagnostics_file"
 }
 
 toggle_mode() {
